@@ -8,23 +8,23 @@ rawDatDir <- file.path("..", "data", sampleName, "raw")
 preprocDatDir <- file.path("..", "data", sampleName, "preproc")
 
 # List relevant files
-files <- list.files(rawDatDir)
+files <- list.files(rawDatDir, pattern = "sess1")
 mfiles <- files[grepl(".csv", files, fixed =T) & !grepl("int", files)]
 intfiles <- files[grepl(".csv", files, fixed =T) & grepl("int", files)]
 
 # Open each file, and then rbind them together
-data <- do.call(rbind, lapply(mfiles, function(f) fread(paste0(rawDatDir, f))))
+data <- do.call(rbind, lapply(mfiles, function(f) fread(file.path(rawDatDir, f))))
 
 getPID <- function(s) substring(strsplit(s,"_")[[1]][1],2)
 
 int_data <- do.call(rbind, lapply(intfiles, function(f) {
-  dat <- fread(paste0(rawDatDir, f))
+  dat <- fread(file.path(rawDatDir, f))
   dat$PID <- getPID(f)
   return(dat)}))
 
 # Remove kickouts
 kickouts <- data[, .(kickout = sum(category == "kick-out")), by = PID][kickout>0]
-write.csv(kickouts, file = paste0(preprocDatDir, "kickouts.csv"))
+write.csv(kickouts, file = file.path(preprocDatDir, "kickouts.csv"))
 data <- data[!(PID %in% kickouts$PID)]
 int_data <- int_data[!(PID %in% kickouts$PID)]
 
@@ -51,8 +51,9 @@ int_data <- merge(int_data,
                   by.y = c("PID", "trial_index"),
                   all.x = TRUE)
 
-important_cats <- c("wait_question", "wait_answer", "wait_satisfaction", "wait_wait", "wait_fixation", "satisfaction",
-                    "rating_question1", "rating_question2", "rating_question3")
+important_cats <- c("wait_question", "wait_answer", "wait_satisfaction", 
+                    "wait_wait", "wait_fixation", "rating_question1", 
+                    "rating_question2", "probability_judgment", "knowledge_test")
 
 int_data[, important := category %in% important_cats]
 
