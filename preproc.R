@@ -62,7 +62,7 @@ quality <- int_data[, .(interactions = .N,
                         important_interactions = sum(important)), by = PID]
 
 # Write interaction data to file
-write.csv(int_data, paste0(preprocDatDir, "browser_interactions.csv"))
+write.csv(int_data, file.path(preprocDatDir, "browser_interactions.csv"))
 
 # Add interactions to main datatable
 int_sum <- int_data[, .(events = paste(event, collapse=",")), by = c("PID", "trial")]
@@ -176,7 +176,7 @@ mrt <- wait[, .(m_choice_rt = mean(choice_rt, na.rm = T),
 quality <- merge(quality, mrt, by = "PID", all.x=T)
 
 # Save waiting task data
-write.csv(renamePIDs(wait), file = paste0(preprocDatDir, "wait_data.csv"))
+write.csv(renamePIDs(wait), file = file.path(preprocDatDir, "wait_data.csv"))
 
 ## Preprocess rating task
 rating_cats <- c("rating_question1", "rating_question2", "rating_question3")
@@ -188,7 +188,7 @@ rating[probe == "useful_not", probe := "useful_me"] # Fix for bug in version 1.0
 rating <- dcast(rating, PID + questionId ~ probe, value.var = "rating")
 
 # Save rating task data
-write.csv(renamePIDs(rating), file = paste0(preprocDatDir, "rating_data.csv"))
+write.csv(renamePIDs(rating), file = file.path(preprocDatDir, "rating_data.csv"))
 
 ## Preprocess questionnaire data
 quest_cats <- c("anxiety", "apathy",
@@ -290,8 +290,8 @@ quest[, reg_focus_27 := 5 - reg_focus_27]# I usually persevere
 quest[, reg_focus_28 := 5 - reg_focus_28]# go-getter
 
 # Save questionnaire to file
-write.csv(renamePIDs(quest), file = paste0(preprocDatDir, "quest_data.csv"))
+write.csv(renamePIDs(quest), file = file.path(preprocDatDir, "quest_data.csv"))
 
 # Save quality data to file
-write.csv(renamePIDs(quality), file = paste0(preprocDatDir, "quality_data.csv"))
+write.csv(renamePIDs(quality), file = file.path(preprocDatDir, "quality_data.csv"))
 
