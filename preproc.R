@@ -81,7 +81,7 @@ warnings <- data[, .(warnings = max(n_warnings)), by=PID]
 quality <- merge(quality, warnings, all.x=TRUE)
 
 # Transform waiting task data to wide format
-wait_cats <- c("wait_question", "wait_answer", "satisfaction", "further_curiosity")
+wait_cats <- c("wait_question", "wait_answer", "wait_satisfaction")
 wait <- data[category %in% wait_cats]
 
 wait_trial_index <- wait[category == "wait_question", 
@@ -89,48 +89,50 @@ wait_trial_index <- wait[category == "wait_question",
 
 # Arrange choices
 wait_choice <- dcast(wait[button_pressed != "null"], 
-                     PID + firstBlock + type + questionId + 
+                     PID + sess + firstBlock + block + type + questionId + 
                        wait_duration ~ category, value.var = "button_pressed")
 setnames(wait_choice, wait_cats[1:2], c("choice", "answer_clicked"))
 
 # Arrange RTs
 wait_rt <- dcast(wait, 
-                     PID + firstBlock + type + questionId + 
+                     PID + sess + firstBlock + block + type + questionId + 
                        wait_duration ~ category, value.var = "rt")
 setnames(wait_rt, wait_cats, c("choice_rt", 
                                    "answer_rt", 
-                                   'satisfaction_rt',
-                                   "further_rt"))
+                                   'satisfaction_rt'))
 
 # Arrange presented stimuli
 wait_stim <- dcast(wait[category %in% wait_cats[1:2]], 
-                   PID + firstBlock + type + questionId + 
+                   PID + sess + firstBlock + block + type + questionId + 
                      wait_duration ~ category, value.var = "stimulus")
 
 setnames(wait_stim, wait_cats[1:2], c("question", 
                                "answer"))
 
+wait_stim[, question := gsub("<div class='question'>|</div>", "", question)]
+wait_stim[, answer := gsub("<div class='answer'>|</div>", "", answer)]
+
 # Arrange interaction data
 wait_int_cats <- c("wait_question", 
                    "wait_answer", 
-                   "satisfaction", 
-                   "further_curiosity", 
+                   "wait_satisfaction", 
                    "wait_wait")
 
 wait_int <- dcast(data[category %in% wait_int_cats], 
-                   PID + firstBlock + type + questionId + 
+                   PID + sess + firstBlock + block + type + questionId + 
                      wait_duration ~ category, value.var = "events")
 
 setnames(wait_int, wait_int_cats, c("question_ints", 
                                "answer_ints", 
                                'satisfaction_ints',
-                               "further_ints",
                                "wait_ints"))
 
 # Merge all
 wait <- merge(wait_choice, wait_rt, 
-                 by = c("PID", 
+                 by = c("PID",
+                        "sess",
                         "firstBlock", 
+                        "block",
                         "type", 
                         "questionId", 
                         "wait_duration"),
@@ -138,7 +140,9 @@ wait <- merge(wait_choice, wait_rt,
 
 wait <- merge(wait, wait_stim,
               by = c("PID", 
+                     "sess",
                      "firstBlock", 
+                     "block",
                      "type", 
                      "questionId", 
                      "wait_duration"),
@@ -146,7 +150,9 @@ wait <- merge(wait, wait_stim,
 
 wait <- merge(wait, wait_int,
               by = c("PID", 
+                     "sess",
                      "firstBlock", 
+                     "block",
                      "type", 
                      "questionId", 
                      "wait_duration"),
@@ -167,8 +173,7 @@ wait[.(choice = c(0, "0", "1", 1, "2", 2, NA, "null"),
      choice := i.to]
 wait[, choice := factor(choice)]
 
-wait[, satisfaction := as.numeric(satisfaction)]
-wait[, further_curiosity := as.numeric(further_curiosity)]
+wait[, wait_satisfaction := as.numeric(wait_satisfaction)]
 
 # Add choice quality to quality
 mrt <- wait[, .(m_choice_rt = mean(choice_rt, na.rm = T),
