@@ -7,6 +7,7 @@ sampleName <- "debug"
 rawDatDir <- file.path("..", "data", sampleName, "raw")
 preprocDatDir <- file.path("..", "data", sampleName, "preproc")
 
+# Load data ----
 # List relevant files
 files <- list.files(rawDatDir, pattern = "sess1")
 mfiles <- files[grepl(".csv", files, fixed =T) & !grepl("int", files)]
@@ -22,12 +23,13 @@ int_data <- do.call(rbind, lapply(intfiles, function(f) {
   dat$PID <- getPID(f)
   return(dat)}))
 
-# Remove kickouts
+# Remove kickouts ----
 kickouts <- data[, .(kickout = sum(category == "kick-out")), by = PID][kickout>0]
 write.csv(kickouts, file = file.path(preprocDatDir, "kickouts.csv"))
 data <- data[!(PID %in% kickouts$PID)]
 int_data <- int_data[!(PID %in% kickouts$PID)]
 
+# Anonimize ----
 # Assign random strings instead of worker IDs
 PIDs <- unique(data[, .(PID = PID, wait_start_time)])[order(wait_start_time)]
 randString <- function(x) paste(sample(c(0:9, letters),
@@ -44,6 +46,7 @@ renamePIDs <- function(dat) dat[.(PID = PIDs$PID, to = PIDs$AID),
 # Type conversion
 data[, rt := as.numeric(rt)]
 
+# Quality measures ----
 # Add trial category to interaction data to see if any occurred in important bits
 int_data <- merge(int_data, 
                   data[, .(PID, trial_index, category)],
@@ -80,7 +83,7 @@ quality <- merge(quality, duration, all.x = TRUE)
 warnings <- data[, .(warnings = max(n_warnings)), by=PID]
 quality <- merge(quality, warnings, all.x=TRUE)
 
-# Transform waiting task data to wide format
+# Preprocess waiting task ----
 wait_cats <- c("wait_question", "wait_answer", "wait_satisfaction")
 wait <- data[category %in% wait_cats]
 
@@ -183,19 +186,18 @@ quality <- merge(quality, mrt, by = "PID", all.x=T)
 # Save waiting task data
 write.csv(renamePIDs(wait), file = file.path(preprocDatDir, "wait_data.csv"))
 
-## Preprocess rating task
-rating_cats <- c("rating_question1", "rating_question2", "rating_question3")
+# Preprocess rating task ----
+rating_cats <- c("rating_question1", "rating_question2")
 rating <- data[category %in% rating_cats]
 rating <- rating[, .(rating = as.numeric(fromJSON(gsub('""', '"', responses))),
            probe = names(fromJSON(gsub('""', '"', responses)))), 
-       by = .(PID, questionId, trial_index)]
-rating[probe == "useful_not", probe := "useful_me"] # Fix for bug in version 1.0
-rating <- dcast(rating, PID + questionId ~ probe, value.var = "rating")
+       by = .(PID, sess, firstBlock, questionId, trial_index)]
+rating <- dcast(rating, PID + sess + firstBlock + questionId ~ probe, value.var = "rating")
 
 # Save rating task data
 write.csv(renamePIDs(rating), file = file.path(preprocDatDir, "rating_data.csv"))
 
-## Preprocess questionnaire data
+# Preprocess questionnaire data ----
 quest_cats <- c("anxiety", "apathy",
                 "demographics", "difficulties",
                 "impulsive", "regulatory_focus", 
