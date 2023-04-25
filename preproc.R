@@ -211,35 +211,44 @@ know_test <- data[category == "knowledge_test"]
 know_test <- know_test[, .(response = fromJSON(gsub('""', '"', responses)),
                    probe = names(fromJSON(gsub('""', '"', responses))),
                    correct_answer = strsplit(correct_answers, ",")[[1]]), 
-               by = .(PID, trial_index)]
+               by = .(PID, sess, trial_index)]
 know_test[, correct := response == correct_answer]
+
+# Type transformation
+know_test[, response := unlist(response)]
 
 # Save knowledge test data
 write.csv(renamePIDs(know_test), file = file.path(preprocDatDir, "knowledge_test_data.csv"))
 
 # Preprocess questionnaire data ----
-quest_cats <- c("anxiety", "apathy",
-                "demographics", "difficulties",
-                "impulsive", "regulatory_focus", 
-                "pleasure")
+quest_cats <- c("stai", "gallup", "reg_mode", "apathy",
+                "coup_relevance", "iwin",
+                "demographics", "difficulties")
 quest <- data[category %in% quest_cats]
 quest <- quest[, .(response = fromJSON(gsub('""', '"', responses)),
                      probe = names(fromJSON(gsub('""', '"', responses)))), 
-                 by = .(PID, trial_index)]
-quest <- dcast(quest, PID ~ probe, value.var = "response")
+                 by = .(PID, sess, category, trial_index)]
+
+# Type transformation
+quest[, response := unlist(response)]
+
+# Recode
+quest[(category == "gallup") & (response == "כן"), response := "1"]
+quest[(category == "gallup") & (response == "לא"), response := "0"]
+
+quest <- dcast(quest, PID + sess ~ probe, value.var = "response")
 
 # Transform questionnaire ratings to numeric
-quest <- as.data.table(apply(quest, 2, function(x) unlist(x, use.names = T)))
-numeric_cats <- c("anxiety|apathy|age|impulsive|reg_focus|pleasure|fluent")
+numeric_items <- c("stai|apathy|age|coup_rel|reg|gallup|fluent|secular_religious|left_right|iwin|socialism_capitalism")
 ns <- colnames(quest)
-quest <- cbind(quest[, ns[!grepl(numeric_cats, ns)], with = F],
-      quest[, ns[grepl(numeric_cats, ns)], with = F][, lapply(.SD, as.numeric)])
+quest <- cbind(quest[, ns[!grepl(numeric_items, ns)], with = F],
+      quest[, ns[grepl(numeric_items, ns)], with = F][, lapply(.SD, as.numeric)])
 
 # Add quest data to quality
 quality <- merge(quality, quest[, .(PID, native_english, fluent, 
                                     difficult, instructions, strategy)],
                  by = "PID", all.x = T)
-t_quest_cats <- "anxiety|apathy|impulsive|reg_focus|pleasure"
+t_quest_cats <- "stai|apathy|reg|coup_rel|gallup|secular_religious|left_right|iwin|socialism_capitalism"
 n_quest_na <- data.table(PID = quest$PID, n_miss_quest = rowSums(quest[, ns[grepl(t_quest_cats, ns)], 
                                                                        with = F][, lapply(.SD, is.na)]))
 quality <- merge(quality, n_quest_na, by = "PID", all.x = T)
