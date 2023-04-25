@@ -197,6 +197,26 @@ rating <- dcast(rating, PID + sess + firstBlock + questionId ~ probe, value.var 
 # Save rating task data
 write.csv(renamePIDs(rating), file = file.path(preprocDatDir, "rating_data.csv"))
 
+# Preprocess probability judgment ----
+prob_judge <- data[category == "probability_judgment"]
+
+prob_judge <- prob_judge[, .(PID, sess, firstBlock, block, itemId, 
+                             trial_index, stimulus, response, rt)]
+
+# Save probability judgment data
+write.csv(renamePIDs(prob_judge), file = file.path(preprocDatDir, "prob_judge_data.csv"))
+
+# Preprocess knowledge test ----
+know_test <- data[category == "knowledge_test"]
+know_test <- know_test[, .(response = fromJSON(gsub('""', '"', responses)),
+                   probe = names(fromJSON(gsub('""', '"', responses))),
+                   correct_answer = strsplit(correct_answers, ",")[[1]]), 
+               by = .(PID, trial_index)]
+know_test[, correct := response == correct_answer]
+
+# Save knowledge test data
+write.csv(renamePIDs(know_test), file = file.path(preprocDatDir, "knowledge_test_data.csv"))
+
 # Preprocess questionnaire data ----
 quest_cats <- c("anxiety", "apathy",
                 "demographics", "difficulties",
