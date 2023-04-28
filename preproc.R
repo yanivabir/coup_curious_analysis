@@ -3,7 +3,7 @@ library(data.table)
 setDTthreads(11)
 library(jsonlite)
 
-sampleName <- "debug"
+sampleName <- "v1.0"
 rawDatDir <- file.path("..", "data", sampleName, "raw")
 preprocDatDir <- file.path("..", "data", sampleName, "preproc")
 
@@ -15,6 +15,9 @@ intfiles <- files[grepl(".csv", files, fixed =T) & grepl("int", files)]
 
 # Open each file, and then rbind them together
 data <- do.call(rbind, lapply(mfiles, function(f) fread(file.path(rawDatDir, f))))
+
+# PID to string
+data[, PID := as.character(PID)]
 
 getPID <- function(s) substring(strsplit(s,"_")[[1]][1],2)
 
@@ -28,20 +31,6 @@ kickouts <- data[, .(kickout = sum(category == "kick-out")), by = PID][kickout>0
 write.csv(kickouts, file = file.path(preprocDatDir, "kickouts.csv"))
 data <- data[!(PID %in% kickouts$PID)]
 int_data <- int_data[!(PID %in% kickouts$PID)]
-
-# Anonimize ----
-# Assign random strings instead of worker IDs
-PIDs <- unique(data[, .(PID = PID, wait_start_time)])[order(wait_start_time)]
-randString <- function(x) paste(sample(c(0:9, letters),
-                                      5, replace=TRUE),
-                               collapse="")
-set.seed(0)
-PIDs[, AID := randString(PID), by = PID]
-
-renamePIDs <- function(dat) dat[.(PID = PIDs$PID, to = PIDs$AID), 
-                                 on = "PID", 
-                                 PID := i.to]
-
 
 # Type conversion
 data[, rt := as.numeric(rt)]
@@ -184,7 +173,7 @@ mrt <- wait[, .(m_choice_rt = mean(choice_rt, na.rm = T),
 quality <- merge(quality, mrt, by = "PID", all.x=T)
 
 # Save waiting task data
-write.csv(renamePIDs(wait), file = file.path(preprocDatDir, "wait_data.csv"))
+write.csv(wait, file = file.path(preprocDatDir, "wait_data.csv"))
 
 # Preprocess rating task ----
 rating_cats <- c("rating_question1", "rating_question2")
@@ -195,7 +184,7 @@ rating <- rating[, .(rating = as.numeric(fromJSON(gsub('""', '"', responses))),
 rating <- dcast(rating, PID + sess + firstBlock + questionId ~ probe, value.var = "rating")
 
 # Save rating task data
-write.csv(renamePIDs(rating), file = file.path(preprocDatDir, "rating_data.csv"))
+write.csv(rating, file = file.path(preprocDatDir, "rating_data.csv"))
 
 # Preprocess probability judgment ----
 prob_judge <- data[category == "probability_judgment"]
@@ -204,7 +193,7 @@ prob_judge <- prob_judge[, .(PID, sess, firstBlock, block, itemId,
                              trial_index, stimulus, response, rt)]
 
 # Save probability judgment data
-write.csv(renamePIDs(prob_judge), file = file.path(preprocDatDir, "prob_judge_data.csv"))
+write.csv(prob_judge, file = file.path(preprocDatDir, "prob_judge_data.csv"))
 
 # Preprocess knowledge test ----
 know_test <- data[category == "knowledge_test"]
@@ -218,7 +207,7 @@ know_test[, correct := response == correct_answer]
 know_test[, response := unlist(response)]
 
 # Save knowledge test data
-write.csv(renamePIDs(know_test), file = file.path(preprocDatDir, "knowledge_test_data.csv"))
+write.csv(know_test, file = file.path(preprocDatDir, "knowledge_test_data.csv"))
 
 # Preprocess questionnaire data ----
 quest_cats <- c("stai", "gallup", "reg_mode", "apathy",
@@ -282,8 +271,8 @@ quest[, reg_Q24 := 5 - reg_Q24] # low energy
 
 
 # Save questionnaire to file
-write.csv(renamePIDs(quest), file = file.path(preprocDatDir, "quest_data.csv"))
+write.csv(quest, file = file.path(preprocDatDir, "quest_data.csv"))
 
 # Save quality data to file
-write.csv(renamePIDs(quality), file = file.path(preprocDatDir, "quality_data.csv"))
+write.csv(quality, file = file.path(preprocDatDir, "quality_data.csv"))
 
