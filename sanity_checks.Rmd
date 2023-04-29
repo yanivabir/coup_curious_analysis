@@ -21,6 +21,25 @@ know_test <- fread(file.path(preprocDatDir, "knowledge_test_data.csv"))
 prob_judge <- fread(file.path(preprocDatDir, "prob_judge_data.csv"))
 quest <- fread(file.path(preprocDatDir, "quest_data.csv"))
 
+# Recover question type from question ID
+rating[, block := ifelse(substr(questionId, 1,3) == "gen", "general", "coup")]
+
+# Collapse across multiple versions of each probe
+rating_clps <- rating[, 
+                      .(PID = PID,
+                        sess = sess,
+                        questionId = questionId,
+                        block = block,
+                        confidence = 
+                          ifelse(is.na(confidence_neg), 
+                                 confidence_pos, 4 - confidence_neg),
+                        affect = ifelse(is.na(affect_neg), 
+                                 affect_pos, 4 - affect_neg),
+                        congruence = ifelse(is.na(congruence_neg), 
+                                 congruence_pos, 4 - congruence_neg),
+                        useful = ifelse(is.na(useful_neg), 
+                                 useful_pos, 4 - useful_neg))]
+
 # Function to compute standard errors
 se <- function(x) sd(x) / sqrt(length(x))
 
@@ -111,5 +130,152 @@ l <- get_legend(p_wait_mean_p + theme(legend.position = "top",
                          plot_grid(p_wait_mean_p, p_wait_mean_q),
                          ncol = 1,
                          rel_heights = c(.1, 1)))
+```
+```{r rating_grand_avg}
+# Summarize rating task by participant
+rate_sum <- melt(rating_clps[, -c("questionId", "sess")], id.vars = c("PID", "block"))
+
+rate_sum <- rate_sum[, .(value = mean(value)), 
+                     by = c("PID", "block", "variable")]
+
+
+rate_sum[, variable := factor(variable, 
+                              levels = c("useful", "confidence", 
+                                         "affect", "congruence"),
+                              labels = c("Usefulness", "Confidence", "Affect",
+                                         "Belief-\ncongruence"))]
+
+rate_sum[, block := factor(block,
+                          levels = levs,
+                          labels = block_labels)]
+
+rate_sum_sum <- rate_sum[, .(value = mean(value)), by = c("block", "variable")]
+
+
+# Plot rating task
+p_rate_mean_p <- ggplot(rate_sum, aes(x = variable, y = value, 
+                                    color = block)) +
+  geom_point(position = position_jitterdodge(dodge.width = 0.5,
+                                             jitter.width = 0.2),
+             size = sz, alpha = 0.5) +
+  geom_crossbar(data = rate_sum_sum, aes(ymin = value, ymax = value),
+             position = position_dodge(width = 0.5), width = 0.5) +
+    scale_color_manual(values=block_colors) +
+  labs(x = "Scale",
+       y = "Average rating",
+       color = 'Question type',
+       title = "Averate Rating for Participants") 
+
+# Summarize rating task by question
+rate_sum <- melt(rating_clps[, -c("PID", "sess")], 
+                 id.vars = c("questionId", "block"))
+
+rate_sum <- rate_sum[, .(value = mean(value)), 
+                     by = c("questionId", "block", "variable")]
+
+rate_sum[, variable := factor(variable, 
+                              levels = c("useful", "confidence", 
+                                         "affect", "congruence"),
+                              labels = c("Usefulness", "Confidence", "Affect",
+                                         "Belief-\ncongruence"))]
+
+rate_sum[, block := factor(block,
+                          levels = levs,
+                          labels = block_labels)]
+
+rate_sum_sum <- rate_sum[, .(value = mean(value)), by = c("block", "variable")]
+
+
+# Plot rating task
+p_rate_mean_q <- ggplot(rate_sum, aes(x = variable, y = value, 
+                                    color = block)) +
+  geom_point(position = position_jitterdodge(dodge.width = 0.5,
+                                             jitter.width = 0.1),
+             size = sz, alpha = 0.5) +
+  geom_crossbar(data = rate_sum_sum, aes(ymin = value, ymax = value),
+             position = position_dodge(width = 0.5), width = 0.5) +
+    scale_color_manual(values=block_colors) +
+  labs(x = "Scale",
+       y = "Average rating",
+       color = 'Question type',
+       title = "Averate Rating for Questions")
+
+l <- get_legend(p_rate_mean_q + theme(legend.position = "top", 
+                                      legend.justification = NULL))
+
+p_rate_mean <- plot_grid(l,
+                         plot_grid(p_rate_mean_p, p_rate_mean_q),
+                         ncol = 1,
+                         rel_heights = c(.1, 1))
+suppressWarnings(print(p_rate_mean))
+
+```
+
+```{r prob_judge_grand_avg}
+# Summarize porbability judgement by participant
+prob_sum <- prob_judge[, .(response = mean(response),
+                           se = se(response)),
+                       by = .(PID, block)]
+  
+
+prob_sum[, block := factor(block,
+                          levels = levs,
+                          labels = block_labels)]
+
+prob_sum_sum <- prob_sum[, .(response = mean(response)), by = c("block")]
+
+
+# Plot rating task
+p_prob_mean_p <- ggplot(prob_sum, aes(x = block, y = response, 
+                                    color = block)) +
+  geom_point(position = position_jitter(width = 0.2),
+             size = sz, alpha = 0.5) +
+  geom_crossbar(data = prob_sum_sum, aes(ymin = response, ymax = response), 
+                width = 0.5) +
+  labs(x = "Question type",
+       y = "Average rating",
+       title = "Averate Probability Judgment for Participants") 
+
+# Summarize rating task by question
+rate_sum <- melt(rating_clps[, -c("PID", "sess")], 
+                 id.vars = c("questionId", "block"))
+
+rate_sum <- rate_sum[, .(value = mean(value)), 
+                     by = c("questionId", "block", "variable")]
+
+rate_sum[, variable := factor(variable, 
+                              levels = c("useful", "confidence", 
+                                         "affect", "congruence"),
+                              labels = c("Usefulness", "Confidence", "Affect",
+                                         "Belief-\ncongruence"))]
+
+rate_sum[, block := factor(block,
+                          levels = levs,
+                          labels = block_labels)]
+
+rate_sum_sum <- rate_sum[, .(value = mean(value)), by = c("block", "variable")]
+
+
+# Plot rating task
+p_rate_mean_q <- ggplot(rate_sum, aes(x = variable, y = value, 
+                                    color = block)) +
+  geom_point(position = position_jitterdodge(dodge.width = 0.5,
+                                             jitter.width = 0.1),
+             size = sz, alpha = 0.5) +
+  geom_crossbar(data = rate_sum_sum, aes(ymin = value, ymax = value),
+             position = position_dodge(width = 0.5), width = 0.5) +
+  labs(x = "Scale",
+       y = "Average rating",
+       color = 'Question type',
+       title = "Averate Rating for Questions")
+
+l <- get_legend(p_rate_mean_q + theme(legend.position = "top", 
+                                      legend.justification = NULL))
+
+p_rate_mean <- plot_grid(l,
+                         plot_grid(p_rate_mean_p, p_rate_mean_q),
+                         ncol = 1,
+                         rel_heights = c(.1, 1))
+suppressWarnings(print(p_rate_mean))
 ```
 
