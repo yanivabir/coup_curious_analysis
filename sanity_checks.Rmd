@@ -1,0 +1,115 @@
+```{r setup}
+# Load libraries
+library(data.table)
+setDTthreads(11)
+library(ggplot2)
+library(cowplot)
+theme_set(theme_minimal()  +
+            theme_cowplot(14, font_family = "Helvetica", rel_small = 0.8) + 
+            theme(legend.position = "none",
+                  strip.text = element_text(size = 9),
+                  plot.margin = margin(1.5,2,1.5,2)))
+
+
+sampleName <- "v1.0"
+preprocDatDir <- file.path("..", "data", sampleName, "preproc")
+
+# Load data
+wait <- fread(file.path(preprocDatDir, "wait_data.csv"))
+rating <- fread(file.path(preprocDatDir, "rating_data.csv"))
+know_test <- fread(file.path(preprocDatDir, "knowledge_test_data.csv"))
+prob_judge <- fread(file.path(preprocDatDir, "prob_judge_data.csv"))
+quest <- fread(file.path(preprocDatDir, "quest_data.csv"))
+
+# Function to compute standard errors
+se <- function(x) sd(x) / sqrt(length(x))
+
+# Colors, lines labels
+block_colors <- c("#cc1337", "#005b8d")
+block_labels <- c("Coup-related", "General")
+levs <- c("coup", "general")
+block_lines <- c("solid", "dashed")
+
+```
+
+```{r waiting_grand_avg_proportions}
+sz = 0.8 # Scatter point size for plots
+
+## Summarize waiting task by participant and block
+wait_sum <- wait[!is.na(choice), .(wait = mean(choice == "wait"),
+                                   skip = mean(choice == "skip"),
+                                   know = mean(choice == "know")), 
+                 by = .(PID, block)]
+
+# Transform wide to long
+wait_sum <- melt(wait_sum, id.vars = c("PID", "block"))
+
+# Pretty labels for wait, skip know
+wait_sum[, variable := factor(variable, labels = c("Wait", "Skip", "Know"))]
+
+# Pretty labels for block
+wait_sum[, block := factor(block,
+                          levels = levs,
+                          labels = block_labels)]
+
+# Summarize by block and respose
+wait_sum_sum <- wait_sum[, .(value = mean(value)), 
+                         by = .(block, variable)]
+
+# Plot waiting task by participant
+p_wait_mean_p <- ggplot(wait_sum, aes(x = variable, y = value, 
+                                    color = block)) +
+  geom_point(position = position_jitterdodge(dodge.width = 0.5,
+                                             jitter.width = 0.2),
+             size = sz, alpha = 0.5) +
+    geom_crossbar(data = wait_sum_sum, aes(ymin = value, ymax = value),
+             position = position_dodge(width = 0.5), width = 0.4) +
+  scale_color_manual(values=block_colors) +
+  labs(x = "Choice",
+       y = "Proportion",
+       color = 'Question type',
+       title = "Proportion waited\nby each participant")
+
+## Summarize waiting task by question
+wait_sum <- wait[, .(wait = mean(choice == "wait"),
+                     skip = mean(choice == "skip"),
+                     know = mean(choice == "know")), by = c("questionId", "block")]
+
+# Transform wide to long
+wait_sum <- melt(wait_sum, id.vars = c("questionId", "block"))
+
+# Pretty labels for response
+wait_sum[, variable := factor(variable, labels = c("Wait", "Skip", "Know"))]
+
+# Pretty labels of question type
+wait_sum[, block := factor(block,
+                          levels = levs,
+                          labels = block_labels)]
+
+# Summarize by type and response
+wait_sum_sum <- wait_sum[, .(value = mean(value)), by = c("block", "variable")]
+
+
+# Plot waiting task by question
+p_wait_mean_q <- ggplot(wait_sum, aes(x = variable, y = value, 
+                                    color = block)) +
+  geom_point(position = position_jitterdodge(dodge.width = 0.5,
+                                             jitter.width = 0.1),
+             size = sz, alpha = 0.5) +
+    geom_crossbar(data = wait_sum_sum, aes(ymin = value, ymax = value),
+             position = position_dodge(width = 0.5), width = 0.4) +
+  scale_color_manual(values=block_colors) +
+  labs(x = "Choice",
+       y = "Proportion",
+       color = 'Question type',
+       title = "Proportion Waited\nfor Each Question")
+
+l <- get_legend(p_wait_mean_p + theme(legend.position = "top", 
+                                      legend.justification = NULL))
+
+(p_wait_mean <- plot_grid(l,
+                         plot_grid(p_wait_mean_p, p_wait_mean_q),
+                         ncol = 1,
+                         rel_heights = c(.1, 1)))
+```
+
