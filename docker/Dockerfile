@@ -23,7 +23,7 @@ libxml2-dev \
 libcairo2-dev \
 libsqlite-dev \
 libmariadbd-dev \
-libmariadbclient-dev \
+#libmariadbclient-dev \
 libpq-dev \
 libssh2-1-dev \
 unixodbc-dev \
@@ -40,3 +40,7 @@ RUN ["r", "install_cmdstan.R"]
 
 # Install additional r libraries
 RUN Rscript -e "install.packages('gsubfn')"
+
+RUN apt-get update \
+&& apt-get install -y --no-install-recommends \
+libxt-dev
