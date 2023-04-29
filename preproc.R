@@ -53,6 +53,12 @@ int_data[, important := category %in% important_cats]
 quality <- int_data[, .(interactions = .N,
                         important_interactions = sum(important)), by = PID]
 
+# Add timestamp
+quality <- merge(quality, 
+                 data[, .(wait_start_time = min(wait_start_time)), by = "PID"], 
+                 by = "PID",
+                 all.x = T)
+
 # Write interaction data to file
 write.csv(int_data, file.path(preprocDatDir, "browser_interactions.csv"))
 
@@ -172,6 +178,14 @@ mrt <- wait[, .(m_choice_rt = mean(choice_rt, na.rm = T),
                 m_answer_rt = mean(answer_rt, na.rm = T)), by = PID]
 quality <- merge(quality, mrt, by = "PID", all.x=T)
 
+mchoice <- wait[, .(n_waited = sum(choice == "wait", na.rm = T),
+                    prop_missed = mean(is.na(choice) | 
+                                     ((choice == "wait") & 
+                                        (is.na(answer_clicked) | 
+                                           is.na(wait_satisfaction))))), 
+                by = PID]
+quality <- merge(quality, mchoice, by = "PID", all.x=T)
+
 # Save waiting task data
 write.csv(wait, file = file.path(preprocDatDir, "wait_data.csv"))
 
@@ -272,6 +286,18 @@ quest[, reg_Q24 := 5 - reg_Q24] # low energy
 
 # Save questionnaire to file
 write.csv(quest, file = file.path(preprocDatDir, "quest_data.csv"))
+
+# Determine who to invite to second session
+quality[, invite := (n_waited > 0) & (important_interactions <= 5) &
+          (prop_missed <= 0.2)]
+
+# Save invite list to file
+quality[, date := as.POSIXct(as.numeric(wait_start_time)/1000, origin="1970-01-01", 
+                             tz="Asia/Tel_Aviv"), 
+        by = "PID"]
+write.csv(quality[invite == T, .(PID, date)], file = file.path(preprocDatDir, "invite.csv"))
+write.csv(quality[, .(PID, date, invite)], file = file.path(preprocDatDir, "approve.csv"))
+
 
 # Save quality data to file
 write.csv(quality, file = file.path(preprocDatDir, "quality_data.csv"))
