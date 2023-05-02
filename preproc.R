@@ -192,8 +192,8 @@ write.csv(wait, file = file.path(preprocDatDir, "wait_data.csv"))
 # Preprocess rating task ----
 rating_cats <- c("rating_question1", "rating_question2")
 rating <- data[category %in% rating_cats]
-rating <- rating[, .(rating = as.numeric(fromJSON(gsub('""', '"', responses))),
-           probe = names(fromJSON(gsub('""', '"', responses)))), 
+rating <- rating[, .(rating = as.numeric(fromJSON(gsub('""', '"', gsub('""', '"', responses)))),
+           probe = names(fromJSON(gsub('""', '"', gsub('""', '"', responses))))), 
        by = .(PID, sess, firstBlock, questionId, trial_index)]
 rating <- dcast(rating, PID + sess + firstBlock + questionId ~ probe, value.var = "rating")
 
@@ -211,8 +211,8 @@ write.csv(prob_judge, file = file.path(preprocDatDir, "prob_judge_data.csv"))
 
 # Preprocess knowledge test ----
 know_test <- data[category == "knowledge_test"]
-know_test <- know_test[, .(response = fromJSON(gsub('""', '"', responses)),
-                   probe = names(fromJSON(gsub('""', '"', responses))),
+know_test <- know_test[, .(response = fromJSON(gsub('""', '"', gsub('""', '"', responses))),
+                   probe = names(fromJSON(gsub('""', '"', gsub('""', '"', responses)))),
                    correct_answer = strsplit(correct_answers, ",")[[1]]), 
                by = .(PID, sess, trial_index)]
 know_test[, correct := response == correct_answer]
@@ -228,8 +228,8 @@ quest_cats <- c("stai", "gallup", "reg_mode", "apathy",
                 "coup_relevance", "iwin",
                 "demographics", "difficulties")
 quest <- data[category %in% quest_cats]
-quest <- quest[, .(response = fromJSON(gsub('""', '"', responses)),
-                     probe = names(fromJSON(gsub('""', '"', responses)))), 
+quest <- quest[, .(response = fromJSON(gsub('""', '"', gsub('""', '"', responses))),
+                     probe = names(fromJSON(gsub('""', '"', gsub('""', '"', responses))))), 
                  by = .(PID, sess, category, trial_index)]
 
 # Type transformation
