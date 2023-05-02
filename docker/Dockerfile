@@ -41,6 +41,10 @@ RUN ["r", "install_cmdstan.R"]
 # Install additional r libraries
 RUN Rscript -e "install.packages('gsubfn')"
 
+# Install additional packages needed
 RUN apt-get update \
 && apt-get install -y --no-install-recommends \
 libxt-dev
+
+# Install additional r libraries
+RUN Rscript -e "install.packages('bit64')"
