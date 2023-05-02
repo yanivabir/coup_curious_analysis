@@ -104,3 +104,5 @@ recall[!is.na(recall), distance := adist(answer, recall, fixed = F,
 # If numeric and exact match, or non numeric and dist < 1, mark as true
 recall[(!is.na(recall)) & ((is_number & (distance == 0)) |
                            (!is_number & (distance < 2))), correct := T]
+
+save(recall, file = file.path(preprocDatDir, "recall_data.rda"))
