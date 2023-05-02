@@ -164,7 +164,7 @@ p_rate_mean_p <- ggplot(rate_sum, aes(x = variable, y = value,
   labs(x = "Scale",
        y = "Average rating",
        color = 'Question type',
-       title = "Averate Rating for Participants") 
+       title = "Average Rating for Participants") 
 
 # Summarize rating task by question
 rate_sum <- melt(rating_clps[, -c("PID", "sess")], 
@@ -198,7 +198,7 @@ p_rate_mean_q <- ggplot(rate_sum, aes(x = variable, y = value,
   labs(x = "Scale",
        y = "Average rating",
        color = 'Question type',
-       title = "Averate Rating for Questions")
+       title = "Average Rating for Questions")
 
 l <- get_legend(p_rate_mean_q + theme(legend.position = "top", 
                                       legend.justification = NULL))
@@ -230,10 +230,9 @@ p_prob_mean_p <- ggplot(prob_sum, aes(x = block, y = response,
                                     color = block)) +
   geom_rain(alpha = .3) +
   scale_color_manual(values=block_colors) +
-  geom_hline(aes(yintercept = 0.5), linetype = "dash") +
   labs(x = "Question type",
        y = "Average probability judgment",
-       title = "Averate Probability Judgment for Participants") 
+       title = "Average Probability Judgment\nfor Participants") 
 
 # Summarize rating task by item
 prob_sum <- prob_judge[, .(response = mean(response),
@@ -253,10 +252,9 @@ p_prob_mean_q <- ggplot(prob_sum, aes(x = block, y = response,
                                     color = block)) +
   geom_rain(alpha = .3) +
   scale_color_manual(values=block_colors) +
-  geom_hline(aes(yintercept = 0.5), color = "black", linetype = "dash") +
   labs(x = "Question type",
        y = "Average probability judgment",
-       title = "Averate Probability Judgment for Items")
+       title = "Average Probability Judgment\nfor Items")
 
 
 (p_prob_mean <- plot_grid(p_prob_mean_p, p_prob_mean_q))
