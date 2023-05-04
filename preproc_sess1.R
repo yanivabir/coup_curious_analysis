@@ -3,7 +3,7 @@ library(data.table)
 setDTthreads(11)
 library(jsonlite)
 
-sampleName <- "v1.0"
+sampleName <- "v1.01"
 rawDatDir <- file.path("..", "data", sampleName, "raw")
 preprocDatDir <- file.path("..", "data", sampleName, "preproc")
 
@@ -14,7 +14,8 @@ mfiles <- files[grepl(".csv", files, fixed =T) & !grepl("int", files)]
 intfiles <- files[grepl(".csv", files, fixed =T) & grepl("int", files)]
 
 # Open each file, and then rbind them together
-data <- do.call(rbind, lapply(mfiles, function(f) fread(file.path(rawDatDir, f))))
+data <- rbindlist(lapply(mfiles, function(f) fread(file.path(rawDatDir, f))),
+                  fill = T)
 
 # PID to string
 data[, PID := as.character(PID)]
@@ -211,10 +212,17 @@ write.csv(prob_judge, file = file.path(preprocDatDir, "prob_judge_data.csv"))
 
 # Preprocess knowledge test ----
 know_test <- data[category == "knowledge_test"]
+know_test[, correct_answers := gsub("כן,",
+                                   "כן-",
+                                   correct_answers)]
+know_test[, responses := gsub("כן,",
+                              "כן-",
+                              responses)]
+
 know_test <- know_test[, .(response = fromJSON(gsub('""', '"', gsub('""', '"', responses))),
                    probe = names(fromJSON(gsub('""', '"', gsub('""', '"', responses)))),
                    correct_answer = strsplit(correct_answers, ",")[[1]]), 
-               by = .(PID, sess, trial_index)]
+               by = .(PID, sess, block, trial_index)]
 know_test[, correct := response == correct_answer]
 
 # Type transformation
@@ -228,8 +236,8 @@ quest_cats <- c("stai", "gallup", "reg_mode", "apathy",
                 "coup_relevance", "iwin",
                 "demographics", "difficulties")
 quest <- data[category %in% quest_cats]
-quest <- quest[, .(response = fromJSON(gsub('""', '"', gsub('""', '"', responses))),
-                     probe = names(fromJSON(gsub('""', '"', gsub('""', '"', responses))))), 
+quest <- quest[, .(response = fromJSON(gsub('""', '"', responses)),
+                     probe = names(fromJSON(gsub('""', '"', responses)))), 
                  by = .(PID, sess, category, trial_index)]
 
 # Type transformation
