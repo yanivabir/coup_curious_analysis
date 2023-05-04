@@ -81,7 +81,7 @@ quality <- merge(quality, warnings, all.x=TRUE)
 
 # Preprocess waiting task ----
 wait_cats <- c("wait_question", "wait_answer", "wait_satisfaction")
-wait <- data[category %in% wait_cats]
+wait <- data[(category %in% wait_cats) & is_practice == F]
 
 wait_trial_index <- wait[category == "wait_question", 
                          .(PID, questionId, trial_index)]
@@ -303,8 +303,16 @@ quality[, invite := (n_waited > 0) & (important_interactions <= 5) &
 quality[, date := as.POSIXct(as.numeric(wait_start_time)/1000, origin="1970-01-01", 
                              tz="Asia/Tel_Aviv"), 
         by = "PID"]
-write.csv(quality[invite == T, .(PID, date)], file = file.path(preprocDatDir, "invite.csv"))
-write.csv(quality[, .(PID, date, invite)], file = file.path(preprocDatDir, "approve.csv"))
+
+approve <- quality[, .(PID, date, invite)]
+
+secSessFiles <- list.files(rawDatDir, pattern = "secondSessStims")
+approve[, secSessFile := sum(grepl(PID, secSessFiles)), by = "PID"]
+assert("Missing second sesstion stim files", nrow(approve[invite == T & 
+                                                            secSessFile == 0]) == 0)
+
+write.csv(approve[invite == T, .(PID, date)], file = file.path(preprocDatDir, "invite.csv"))
+write.csv(approve, file = file.path(preprocDatDir, "approve.csv"))
 
 
 # Save quality data to file
