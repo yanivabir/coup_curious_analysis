@@ -1,3 +1,6 @@
+# Docker Log
+build.log
+
 # History files
 .Rhistory
 .Rapp.history
@@ -54,4 +57,4 @@ rsconnect/
 .DS_Store
 Icon
 
-Icon
+Icon
