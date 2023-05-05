@@ -291,6 +291,19 @@ quest[, apathy_13 := 3 - (apathy_13)] # apathetic
 quest[, reg_Q13 := 5 - reg_Q13] # wait a little
 quest[, reg_Q24 := 5 - reg_Q24] # low energy
 
+# Coup relevance - higher is more relevant, stronger opposistion
+quest[, coup_rel_01 := 4 - coup_rel_01] # I have more important stuff
+quest[, coup_rel_04 := 4 - coup_rel_04] # No meaningful chage
+quest[, coup_rel_05 := 4 - coup_rel_05] # Not for lay people
+
+quest[, coup_rel_08 := 4 - coup_rel_08] # Politician similar to people I know
+quest[, coup_rel_09 := 4 - coup_rel_09] # Proud of Israel post reform
+quest[, coup_rel_13 := 4 - coup_rel_13] # Judicial system needs a thorough change
+quest[, coup_rel_14 := 4 - coup_rel_14] # Judicial needs to be reigned in
+quest[, coup_rel_15 := 4 - coup_rel_15] # No representation w/o reform
+quest[, coup_rel_18 := 4 - coup_rel_18] # Reform will improve economic status
+quest[, coup_rel_20 := 4 - coup_rel_20] # No reform no Jewish state
+quest[, coup_rel_21 := 4 - coup_rel_21] # I support reform
 
 # Save questionnaire to file
 write.csv(quest, file = file.path(preprocDatDir, "quest_data.csv"))
