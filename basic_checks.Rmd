@@ -3,6 +3,7 @@
 library(data.table)
 setDTthreads(11)
 library(ggplot2)
+library(ggrain)
 library(cowplot)
 theme_set(theme_minimal()  +
             theme_cowplot(14, font_family = "Helvetica", rel_small = 0.8) + 
@@ -222,8 +223,6 @@ prob_sum[, block := factor(block,
                           levels = levs,
                           labels = block_labels)]
 
-prob_sum_sum <- prob_sum[, .(response = mean(response)), by = c("block")]
-
 
 # Plot rating task
 p_prob_mean_p <- ggplot(prob_sum, aes(x = block, y = response, 
@@ -244,8 +243,6 @@ prob_sum[, block := factor(block,
                           levels = levs,
                           labels = block_labels)]
 
-prob_sum_sum <- prob_sum[, .(response = mean(response)), by = c("block")]
-
 
 # Plot rating task
 p_prob_mean_q <- ggplot(prob_sum, aes(x = block, y = response, 
@@ -258,5 +255,48 @@ p_prob_mean_q <- ggplot(prob_sum, aes(x = block, y = response,
 
 
 (p_prob_mean <- plot_grid(p_prob_mean_p, p_prob_mean_q))
+```
+
+```{r know_test_grand_avg}
+# Summarize knowledge test by participant
+know_sum <- know_test[, .(correct = mean(correct)),
+                       by = .(PID, block)]
+  
+
+know_sum[, block := factor(block,
+                          levels = levs,
+                          labels = block_labels)]
+
+
+# Plot rating task
+p_know_mean_p <- ggplot(know_sum, aes(x = block, y = correct, 
+                                    color = block)) +
+  geom_rain(alpha = .3) +
+  scale_color_manual(values=block_colors) +
+  labs(x = "Question type",
+       y = "Proportion correct",
+       title = "Knowledge Test\nby Participant") 
+
+# Summarize rating task by item
+know_sum <- know_test[, .(correct = mean(correct)),
+                       by = .(probe, block)]
+  
+
+know_sum[, block := factor(block,
+                          levels = levs,
+                          labels = block_labels)]
+
+
+# Plot rating task
+p_know_mean_q <- ggplot(know_sum, aes(x = block, y = correct, 
+                                    color = block)) +
+  geom_rain(alpha = .3) +
+  scale_color_manual(values=block_colors) +
+  labs(x = "Question type",
+       y = "Proportion correct",
+       title = "Knowledge Test \nby Item")
+
+
+(p_know_mean <- plot_grid(p_know_mean_p, p_know_mean_q))
 ```
 
