@@ -49,4 +49,5 @@ libxt-dev
 # Install additional r libraries
 RUN Rscript -e "install.packages('bit64')"
 RUN Rscript -e "install.packages('testit')"
+RUN Rscript -e "install.packages('ggrain')"
 
