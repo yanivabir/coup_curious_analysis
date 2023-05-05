@@ -6,7 +6,7 @@ library(ggplot2)
 library(ggrain)
 library(cowplot)
 theme_set(theme_minimal()  +
-            theme_cowplot(14, font_family = "Helvetica", rel_small = 0.8) + 
+            theme_cowplot(14, font_family = "Arial", rel_small = 0.8) + 
             theme(legend.position = "none",
                   strip.text = element_text(size = 9),
                   plot.margin = margin(1.5,2,1.5,2)))
@@ -40,6 +40,13 @@ rating_clps <- rating[,
                                  congruence_pos, 4 - congruence_neg),
                         useful = ifelse(is.na(useful_neg), 
                                  useful_pos, 4 - useful_neg))]
+
+# Add keys to probability judgment
+prob_judge_key <- fread(file.path("..", "data", "prob_judge_key.csv"))
+
+prob_judge <- merge(prob_judge, prob_judge_key[, .(itemId, short_desc)],
+                    by = "itemId", all.x = T)
+
 
 # Function to compute standard errors
 se <- function(x) sd(x) / sqrt(length(x))
@@ -256,6 +263,15 @@ p_prob_mean_q <- ggplot(prob_sum, aes(x = block, y = response,
 
 (p_prob_mean <- plot_grid(p_prob_mean_p, p_prob_mean_q))
 ```
+
+```{r prob_judge_per_item}
+ggplot(prob_judge, aes(x = response, fill = block)) +
+  geom_histogram() +
+  facet_wrap("short_desc", labeller = label_wrap_gen()) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 6))
+```
+
 
 ```{r know_test_grand_avg}
 # Summarize knowledge test by participant
