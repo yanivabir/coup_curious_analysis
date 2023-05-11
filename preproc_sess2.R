@@ -3,7 +3,7 @@ library(data.table)
 setDTthreads(11)
 library(jsonlite)
 
-sampleName <- "v1.0"
+sampleName <- "v1.01"
 rawDatDir <- file.path("..", "data", sampleName, "raw")
 preprocDatDir <- file.path("..", "data", sampleName, "preproc")
 
@@ -14,7 +14,8 @@ mfiles <- files[grepl(".csv", files, fixed =T) & !grepl("int", files)]
 intfiles <- files[grepl(".csv", files, fixed =T) & grepl("int", files)]
 
 # Open each file, and then rbind them together
-data <- do.call(rbind, lapply(mfiles, function(f) fread(file.path(rawDatDir, f))))
+data <- rbindlist(lapply(mfiles, function(f) fread(file.path(rawDatDir, f))),
+                  fill = T)
 
 # PID to string
 data[, PID := as.character(PID)]
