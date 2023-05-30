@@ -13,14 +13,36 @@ files <- list.files(rawDatDir, pattern = "sess2")
 mfiles <- files[grepl(".csv", files, fixed =T) & !grepl("int", files)]
 intfiles <- files[grepl(".csv", files, fixed =T) & grepl("int", files)]
 
+# Check for double takers
+getPID <- function(s) substring(strsplit(s,"_")[[1]][1],2)
+getDate <- function(s) substring(strsplit(s,"_")[[1]][3],1,10)
+
+doubles <- data.table(PID = sapply(mfiles, getPID),
+                      date = sapply(mfiles, getDate))
+doubles[, n := .N, by = PID]
+doubles <- doubles[n > 1][order(date)]
+
+# Remove second take from data
+if (nrow(doubles) > 0)  {
+  doubles[, i := 1:.N, by = "PID"]
+  doubles_to_remove <- doubles[i > 1]
+  doubles_to_remove[, mfile := paste0("S", PID, "_sess2_", date, ".csv")]
+  doubles_to_remove[, intfile := paste0("S", PID, "_sess2_", date, "_int.csv")]
+  mfiles <- mfiles[!(mfiles %in% doubles_to_remove$mfile)]
+  intfiles <- intfiles[!(intfiles %in% doubles_to_remove$intfile)]
+  
+  # Save double takers list
+  doubles <- dcast(doubles, PID ~ i, value.var = "date")
+  write.csv(doubles, file = file.path(preprocDatDir, "double_takers_sess2.csv"))
+}
+
+
 # Open each file, and then rbind them together
 data <- rbindlist(lapply(mfiles, function(f) fread(file.path(rawDatDir, f))),
                   fill = T)
 
 # PID to string
 data[, PID := as.character(PID)]
-
-getPID <- function(s) substring(strsplit(s,"_")[[1]][1],2)
 
 int_data <- do.call(rbind, lapply(intfiles, function(f) {
   dat <- fread(file.path(rawDatDir, f))
