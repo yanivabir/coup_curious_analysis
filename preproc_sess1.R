@@ -2,9 +2,12 @@
 library(data.table)
 setDTthreads(11)
 library(jsonlite)
+library(rvest)
+library(lubridate)
 
 sampleName <- "v1.01"
 rawDatDir <- file.path("..", "data", sampleName, "raw")
+midgamDatDir <- file.path("..", "data", sampleName, "midgam")
 preprocDatDir <- file.path("..", "data", sampleName, "preproc")
 
 # Load data ----
@@ -12,6 +15,7 @@ preprocDatDir <- file.path("..", "data", sampleName, "preproc")
 files <- list.files(rawDatDir, pattern = "sess1")
 mfiles <- files[grepl(".csv", files, fixed =T) & !grepl("int", files)]
 intfiles <- files[grepl(".csv", files, fixed =T) & grepl("int", files)]
+midgamfiles <- list.files(midgamDatDir, pattern = ".xls")
 
 # Check for double takers
 getPID <- function(s) substring(strsplit(s,"_")[[1]][1],2)
@@ -51,12 +55,49 @@ int_data <- do.call(rbind, lapply(intfiles, function(f) {
   dat$PID <- getPID(f)
   return(dat)}))
 
+# Open midgam data
+midgam <- rbindlist(lapply(midgamfiles, 
+                           function(f) {
+                             file.path(midgamDatDir, f) %>%
+                               read_html() %>%
+                               html_element("table") %>%
+                               html_table %>%
+                               as.data.table
+                           }), use.names=TRUE)
+
 # Remove kickouts ----
 kickouts <- data[, .(kickout = sum(category == "kick-out")), 
                  by = .(PID, date)][kickout>0]
 write.csv(kickouts, file = file.path(preprocDatDir, "kickouts.csv"))
 data <- data[!(PID %in% kickouts$PID)]
 int_data <- int_data[!(PID %in% kickouts$PID)]
+
+# Filter midgam data
+midgam <- midgam[userId %in% unique(data$PID)]
+
+# Use midgam data to fix dates ----
+# Parse midgam dates
+midgam[, date := tstrsplit(startTime, " ")[1]]
+midgam$date <- mdy(midgam$date)
+
+# Find outlier dates in data
+dates <- data[, .(date = unique(date)), by = PID]
+dates[, date_N := .N, by = "date"]
+problem_dates <- dates[date_N < 5]
+
+# Find correct dates in midgm data
+amended_dates <- midgam[userId %in% problem_dates$PID]
+amended_dates[, userN := .N, by = userId]
+amended_dates <- amended_dates[userN <= 2]
+amended_dates <- amended_dates[, .(date = min(date)), by = userId]
+
+# Fix in data
+for(i in 1:nrow(amended_dates)){
+  warning("Fixing date for participant ", amended_dates$userId[i], 
+          ": from ", problem_dates[PID == amended_dates$userId[i]]$date, " to ",
+          as.character(amended_dates$date[i]))
+  data[PID == amended_dates$userId[i], date := as.character(amended_dates$date[i])]
+}
 
 # Type conversion
 data[, rt := as.numeric(rt)]
