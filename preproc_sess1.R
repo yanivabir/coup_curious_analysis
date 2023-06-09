@@ -343,6 +343,18 @@ quest[, stai_15 := 3 - (stai_15)] # Content
 quest[, stai_18 := 3 - (stai_18)] # Steady
 quest[, stai_19 := 3 - (stai_19)] # Pleasant
 
+# Gallup - higher is negative affect
+quest[, gallup01 := 10 - (gallup01)] # Satisfied with life
+quest[, gallup04 := 1 - (gallup04)] # A lot of joy
+quest[, gallup05 := 1 - (gallup05)] # A lot of happiness
+quest[, gallup09 := 1 - (gallup09)] # Something interesting
+quest[, gallup10 := 1 - (gallup10)] # Smiled or laughed
+quest[, gallup12 := 1 - (gallup12)] # More like yesterday
+quest[, gallup13 := 1 - (gallup13)] # Current best life
+quest[, gallup14 := 1 - (gallup14)] # Past best life
+quest[, gallup15 := 1 - (gallup15)] # Future best life
+
+
 # Apathy - higher is motivated
 quest[, apathy_2 := 3 - (apathy_2)] # worried
 quest[, apathy_8 := 3 - (apathy_8)] # tell you what to do
