@@ -475,7 +475,7 @@ coup_rel_date_sum <- coup_rel_l[, .(value = mean(value, na.rm = T),
 ggplot(coup_rel_date_sum, aes(x = date, y = value, color = scale)) + 
   geom_pointrange(aes(ymin = value - se, ymax = value + se)) +
   labs(x = "Date", y = "Average rating", color = "Scale",
-       title = "Subscales of Coup-Relevance Questionnaire by Date") +
+       title = "") +
   theme(legend.position = "top")
 ```
 
@@ -499,5 +499,33 @@ ggplot(coup_rel_l, aes(x = value, fill = scale)) +
          y = "# participants",
          title = "Histogram for Each Coup Relevance Item")
 
+```
+
+```{r ideology, warning=F, fig.dim = c(8, 8)}
+ideo <- quest[, grep("PID|iwin|socialism|secular|left", 
+                     colnames(quest)), with = F]
+
+corrplot(cor(ideo[, .(IWIN1 = iwin_1, IWIN2 = iwin_2, IWIN3 = iwin_3, 
+                      `Left-right` = left_right, 
+                                  `Secular-religious` = secular_religious, 
+                                  `Socialism-capitalism` = socialism_capitalism)], use = "pairwise.complete.obs"), 
+         method = "ellipse")
+
+ideo[, iwin := rowMeans(.SD[, .(iwin_1, iwin_2, iwin_3)]) + 1]
+
+ideo_coup_rel <- merge(ideo, coup_rel_sum_w, by = "PID")
+
+ideo_coup_rel[, left_right := left_right + 1]
+ideo_coup_rel[, secular_religious := secular_religious + 1]
+ideo_coup_rel[, socialism_capitalism := socialism_capitalism + 1]
+
+GGally::ggpairs(ideo_coup_rel[, .(IWIN = iwin, `Left-right` = left_right, 
+                                  `Secular-religious` = secular_religious, 
+                                  `Socialism-capitalism` = socialism_capitalism, 
+                                  `Coup relevance` = Relevance, 
+                                  `Coup attitude` = Attitude)],
+                lower = list(continuous = "density"),
+                progress = F,
+                title = "Coup Relevance and Ideology Measures")
 ```
 
