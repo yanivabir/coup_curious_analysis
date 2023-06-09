@@ -50,4 +50,5 @@ libxt-dev
 RUN Rscript -e "install.packages('bit64')"
 RUN Rscript -e "install.packages('testit')"
 RUN Rscript -e "install.packages('ggrain')"
+RUN Rscript -e "install.packages('lubridate')"
 
