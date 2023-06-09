@@ -22,6 +22,16 @@ rating <- fread(file.path(preprocDatDir, "rating_data.csv"))
 know_test <- fread(file.path(preprocDatDir, "knowledge_test_data.csv"))
 prob_judge <- fread(file.path(preprocDatDir, "prob_judge_data.csv"))
 quest <- fread(file.path(preprocDatDir, "quest_data.csv"))
+quality <- fread(file.path(preprocDatDir, "quality_data.csv"), drop = c(1))
+
+# Merge dates
+quality <- quality[!is.na(date)]
+dates <- unique(quality$date)
+for (d in dates){
+  if ((d-1) %in% as.numeric(dates)){
+    quality[date == d, date := date - 1]
+  }
+}
 
 # Recover question type from question ID
 rating[, block := ifelse(substr(questionId, 1,3) == "gen", "general", "coup")]
@@ -55,7 +65,7 @@ prob_judge[, short_desc := factor(short_desc,
 coup_rel_key <- fread(file.path("..", "data", "coup_rel_key.csv"))
 
 # Function to compute standard errors
-se <- function(x) sd(x) / sqrt(length(x))
+se <- function(x) sd(x, na.rm = T) / sqrt(sum(!is.na(x)))
 
 # Colors, lines labels
 block_colors <- c("#cc1337", "#005b8d")
@@ -359,7 +369,7 @@ know_sum[, block := factor(block,
                           labels = block_labels)]
 
 
-# Plot rating task
+# Plot knowledge test
 p_know_mean_p <- ggplot(know_sum, aes(x = block, y = correct, 
                                     color = block)) +
   geom_rain(alpha = .3) +
@@ -368,7 +378,27 @@ p_know_mean_p <- ggplot(know_sum, aes(x = block, y = correct,
        y = "Proportion correct",
        title = "Knowledge Test\nby Participant") 
 
-# Summarize rating task by item
+# Add date to date
+know_sum <- merge(know_sum, quality[, .(PID, date)], 
+                  by = "PID", all.x = T)
+
+# Summarize by date
+know_sum_date <- know_sum[, .(correct = mean(correct),
+                              se = se(correct)), by = c("date", "block")]
+
+# Plot knowledge test by date
+p_know_mean_d <- ggplot(know_sum_date, aes(x = date, y = correct, 
+                                    color = block)) +
+  geom_pointrange(aes(ymin = correct - se, ymax = correct + se)) +
+  scale_color_manual(values=block_colors) +
+  theme(legend.position = "top") +
+  labs(x = "Date",
+       y = "Proportion correct",
+       color = "Question type",
+       title = "Knowledge Test by Date") 
+
+
+# Summarize knowledge test by item
 know_sum <- know_test[, .(correct = mean(correct)),
                        by = .(probe, block)]
   
@@ -378,7 +408,7 @@ know_sum[, block := factor(block,
                           labels = block_labels)]
 
 
-# Plot rating task
+# Plot knowledge test
 p_know_mean_q <- ggplot(know_sum, aes(x = block, y = correct, 
                                     color = block)) +
   geom_rain(alpha = .3) +
@@ -389,6 +419,8 @@ p_know_mean_q <- ggplot(know_sum, aes(x = block, y = correct,
 
 
 (p_know_mean <- plot_grid(p_know_mean_p, p_know_mean_q))
+
+p_know_mean_d
 ```
 
 ## Coup relevance - subscales and individual items
@@ -397,18 +429,22 @@ p_know_mean_q <- ggplot(know_sum, aes(x = block, y = correct,
 # Coup relevance data.table
 coup_rel <- quest[, grepl("coup|PID", names(quest)), with = F]
 
+# Add date
+coup_rel <- merge(coup_rel, quality[!is.na(date), .(PID, date)], 
+                  by = "PID", all.x = T)
+
 # Wide to long
-coup_rel_l <- melt(coup_rel, id.vars = "PID")
+coup_rel_l <- melt(coup_rel, id.vars = c("PID", "date"))
 
 # Split to relevance and attitude
 coup_rel_l[, item_n := as.numeric(strsplit(as.character(variable), "_")[[1]][3]), 
            by = .(variable)]
 coup_rel_l[, scale := ifelse(item_n < 8, "Relevance", "Attitude")]
 
-coup_rel_sum <- coup_rel_l[, .(value = mean(value + 1, na.rm = T)), by = .(PID, scale)]
-coup_rel_sum <- dcast(coup_rel_sum, PID ~ scale)
+coup_rel_sum <- coup_rel_l[, .(value = mean(value + 1, na.rm = T)), by = .(PID, date, scale)]
+coup_rel_sum_w <- dcast(coup_rel_sum, PID + date ~ scale)
 
-ggplot(coup_rel_sum, aes(x = Relevance, y = Attitude)) +
+ggplot(coup_rel_sum_w, aes(x = Relevance, y = Attitude)) +
   geom_point(alpha = 0.1) +
   geom_density2d() +
   coord_fixed() +
@@ -420,7 +456,29 @@ ggplot(coup_rel_sum, aes(x = Relevance, y = Attitude)) +
     limits = c(0.9, 5.1)) +
   labs(title = "Subscales of Coup-Relevance Questionnaire")
 
+ggplot(coup_rel_sum_w, aes(x = Relevance, y = Attitude)) +
+  geom_point(alpha = 0.1) +
+  geom_density2d() +
+  coord_fixed() +
+  facet_wrap("date") +
+  scale_x_continuous(breaks = 1:5,
+    labels = c("1\nDon't care", "2", "3", "4", "5\nCare"),
+    limits = c(0.9, 5.1)) +
+  scale_y_continuous(breaks = 1:5,
+    labels = c("Support 1", "2", "3", "4", "Oppose 5"),
+    limits = c(0.9, 5.1)) +
+  labs(title = "Subscales of Coup-Relevance Questionnaire by Date")
+
+coup_rel_date_sum <- coup_rel_l[, .(value = mean(value, na.rm = T),
+                                    se = se(value)), by = c("date", "scale")]
+
+ggplot(coup_rel_date_sum, aes(x = date, y = value, color = scale)) + 
+  geom_pointrange(aes(ymin = value - se, ymax = value + se)) +
+  labs(x = "Date", y = "Average rating", color = "Scale",
+       title = "Subscales of Coup-Relevance Questionnaire by Date") +
+  theme(legend.position = "top")
 ```
+
 
 ```{r coup_rel_items, warning=FALSE}
 coup_rel_key[grepl("negative|for", coding), short_desc := paste0("¬", short_desc)]
