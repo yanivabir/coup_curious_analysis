@@ -501,11 +501,11 @@ ggplot(coup_rel_l, aes(x = value, fill = scale)) +
 
 ```
 
-```{r ideology, warning=F, fig.dim = c(8, 8)}
+```{r ideology, fig.dim=, message=FALSE, warning=FALSE}
 ideo <- quest[, grep("PID|iwin|socialism|secular|left", 
                      colnames(quest)), with = F]
 
-corrplot(cor(ideo[, .(IWIN1 = iwin_1, IWIN2 = iwin_2, IWIN3 = iwin_3, 
+corrplot::corrplot(cor(ideo[, .(IWIN1 = iwin_1, IWIN2 = iwin_2, IWIN3 = iwin_3, 
                       `Left-right` = left_right, 
                                   `Secular-religious` = secular_religious, 
                                   `Socialism-capitalism` = socialism_capitalism)], use = "pairwise.complete.obs"), 
@@ -527,5 +527,15 @@ GGally::ggpairs(ideo_coup_rel[, .(IWIN = iwin, `Left-right` = left_right,
                 lower = list(continuous = "density"),
                 progress = F,
                 title = "Coup Relevance and Ideology Measures")
+```
+
+```{r affect_motivation_quests}
+ctrl_quests <- quest[, grep("PID|stai|reg_Q|gallup|apathy", 
+                     colnames(quest)), with = F]
+
+corrplot::corrplot(cor(ctrl_quests[, -c("PID"), with = F],
+                       use = "pairwise.complete.obs"),
+                   method = "square", tl.cex = 0.5) 
+
 ```
 
