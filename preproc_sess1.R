@@ -4,6 +4,7 @@ setDTthreads(11)
 library(jsonlite)
 library(rvest)
 library(lubridate)
+library(testit)
 
 sampleName <- "v1.01"
 rawDatDir <- file.path("..", "data", sampleName, "raw")
