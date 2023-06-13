@@ -52,5 +52,6 @@ RUN Rscript -e "install.packages('testit')"
 RUN Rscript -e "install.packages('ggrain')"
 RUN Rscript -e "install.packages('lubridate')"
 RUN Rscript -e "install.packages('corrplot')"
+RUN Rscript -e "install.packages('rvest')"
 
 

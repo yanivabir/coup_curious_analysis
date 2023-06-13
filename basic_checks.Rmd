@@ -158,6 +158,8 @@ l <- get_legend(p_wait_mean_p + theme(legend.position = "top",
                          rel_heights = c(.1, 1)))
 ```
 
+Fig. 1. Response proportions by question type. Left panel displays proportions summarized by participant. We observe the expected considerable individual differences. We also observe a high proportion of 'Know' responses. There is a slight tendency to wait more for general questions, and respond 'Know' more often to coup-related questions. Skipping proportions are similar. On the right the data is summarized by question. The trends are similar summarized this way.
+
 ## Question rating averages
 ```{r rating_grand_avg, warning=FALSE}
 # Summarize rating task by participant
@@ -239,6 +241,8 @@ suppressWarnings(print(p_rate_mean))
 
 ```
 
+Fig. 2. Rating covariates by question type. Left panel summarizes ratings by participant, right panel summarizes them by question. For both we see that coup-releated questions elicit higher ratings of confidence and usefulness relative to general questions. Answers to general questions are expected to elicit more positive affect. We see relatively little variance in response to the belief congruence probe when summarized by question, and a lot of individual differences in belief congurence ratings, indicating that participants are not consistent in their ratings.
+
 ## Rating - waiting correlations
 ```{r rating_waiting, warning=FALSE}
 # Summarize rating task by question
@@ -296,6 +300,7 @@ ggplot(wait_rate, aes(x = rating, y = prop, color = choice)) +
        color = "Choice")
 ```
 
+Fig. 3. Relationship between waiting-task responses and covariate ratings. Each question is represented by three points, denoting the respective proportion of 'Know', 'Wait', and 'Skip' choices. Both waiting and 'Know' responses increase with usefulness. There is a strong association between rated confidence and the proportion of 'Know' responses. As the predicted affect for the answer becomes more positive, waiting and 'Know' responses increase. Belief congruence is associated with a larger proportion of 'Know' responses. All trend lines are logistic regression, which cannot capture non-monotonicity.
 
 ## Event-probability judgments - averages and histograms
 
@@ -344,6 +349,8 @@ p_prob_mean_q <- ggplot(prob_sum, aes(x = block, y = response,
 (p_prob_mean <- plot_grid(p_prob_mean_p, p_prob_mean_q))
 ```
 
+Fig. 4. We see considerable individual differences in event probability judgments. Across participants (left panel), the distribution seems bi modal, with a peak just below and just above 0.5. The distribution of average probability rating summarized by items indicates good psychometric qualities: most items cluster between 0.4 and 0.6, giving us maximum dynamic range to meaures individual differences. We also have a few items at the extreme helping with calibrating particiapnts' responses.
+
 ```{r prob_judge_per_item}
 ggplot(prob_judge, aes(x = response, fill = block)) +
   geom_histogram(binwidth = 0.03) +
@@ -355,6 +362,8 @@ ggplot(prob_judge, aes(x = response, fill = block)) +
          title = "Histogram of Probability Judgments per Item") +
   scale_x_continuous(breaks = c(0.0, 0.5, 1.0))
 ```
+
+Fig. 5. Histograms of probability judgment per item. Note that while some items elicit quite uniform responses (the probability of Israel and Saudi Arabia signing a peace deal), others are clustered around 0.5 (Madrid flight cheaper than Paris flight on a specific date). The last two items in each category are meant to elicit 0 and 1 responses resepectively. It seems that people are likelier to give extreme responses close to 1 than to 0.
 
 ## Knowledge test averages
 
@@ -501,7 +510,7 @@ ggplot(coup_rel_l, aes(x = value, fill = scale)) +
 
 ```
 
-```{r ideology, fig.dim=, message=FALSE, warning=FALSE}
+```{r ideology, fig.dim=c(8,8), message=FALSE, warning=FALSE}
 ideo <- quest[, grep("PID|iwin|socialism|secular|left", 
                      colnames(quest)), with = F]
 
