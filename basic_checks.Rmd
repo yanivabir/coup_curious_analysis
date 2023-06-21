@@ -33,9 +33,6 @@ for (d in dates){
   }
 }
 
-# Recover question type from question ID
-rating[, block := ifelse(substr(questionId, 1,3) == "gen", "general", "coup")]
-
 # Collapse across multiple versions of each probe
 rating_clps <- rating[, 
                       .(PID = PID,

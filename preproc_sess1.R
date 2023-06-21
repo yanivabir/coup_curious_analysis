@@ -14,8 +14,8 @@ preprocDatDir <- file.path("..", "data", sampleName, "preproc")
 # Load data ----
 # List relevant files
 files <- list.files(rawDatDir, pattern = "sess1")
-mfiles <- files[grepl(".csv", files, fixed =T) & !grepl("int", files)]
-intfiles <- files[grepl(".csv", files, fixed =T) & grepl("int", files)]
+mfiles <- files[grepl(".csv", files, fixed =T) & !grepl("int", files) & !grepl("yaniv", files)]
+intfiles <- files[grepl(".csv", files, fixed =T) & grepl("int", files) & !grepl("yaniv", files)]
 midgamfiles <- list.files(midgamDatDir, pattern = ".xls")
 
 # Check for double takers
@@ -264,6 +264,9 @@ rating <- rating[, .(rating = as.numeric(fromJSON(gsub('""', '"', gsub('""', '"'
            probe = names(fromJSON(gsub('""', '"', gsub('""', '"', responses))))), 
        by = .(PID, sess, firstBlock, questionId, trial_index)]
 rating <- dcast(rating, PID + sess + firstBlock + questionId ~ probe, value.var = "rating")
+
+# Recover question type from question ID
+rating[, block := ifelse(substr(questionId, 1,3) == "gen", "general", "coup")]
 
 # Save rating task data
 write.csv(rating, file = file.path(preprocDatDir, "rating_data.csv"))

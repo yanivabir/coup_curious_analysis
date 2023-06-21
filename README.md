@@ -8,3 +8,15 @@
  
 ## Progress log:
 
+### 06/21/2023
+- Decided with DS to start develop analysis pipelines.
+
+- Tentative plan:
+
+- [ ] Relationship between ratings and waiting task
+
+- [ ] Factor analyse motivation and affect questionnaires
+
+- [ ] Observe development of factors over time, and relationship to demographics
+
+- [ ] Relationship of factors with epistemic behaviour
