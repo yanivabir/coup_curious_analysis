@@ -24,6 +24,17 @@ prob_judge <- fread(file.path(preprocDatDir, "prob_judge_data.csv"))
 quest <- fread(file.path(preprocDatDir, "quest_data.csv"))
 quality <- fread(file.path(preprocDatDir, "quality_data.csv"), drop = c(1))
 
+# Exclude participants
+source("exclude.R")
+excluded_sess1 <- exclude_sess_1(quality, quest, wait)
+
+wait <- wait[!(PID %in% excluded_sess1)]
+rating <- rating[!(PID %in% excluded_sess1)]
+know_test <- know_test[!(PID %in% excluded_sess1)]
+prob_judge <- prob_judge[!(PID %in% excluded_sess1)]
+quest <- quest[!(PID %in% excluded_sess1)]
+quality <- quality[!(PID %in% excluded_sess1)]
+
 # Merge dates
 quality <- quality[!is.na(date)]
 dates <- unique(quality$date)
