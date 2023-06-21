@@ -49,14 +49,6 @@ rating_clps <- rating[,
                         useful = ifelse(is.na(useful_neg), 
                                  useful_pos, 4 - useful_neg))]
 
-# Add keys to probability judgment
-prob_judge_key <- fread(file.path("..", "data", "prob_judge_key.csv"))
-
-prob_judge <- merge(prob_judge, prob_judge_key[, .(itemId, short_desc)],
-                    by = "itemId", all.x = T)
-
-prob_judge[, short_desc := factor(short_desc,
-                                  levels = prob_judge_key$short_desc)]
 
 # Coup relevance key
 coup_rel_key <- fread(file.path("..", "data", "coup_rel_key.csv"))

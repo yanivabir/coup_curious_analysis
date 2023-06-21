@@ -277,6 +277,15 @@ prob_judge <- data[category == "probability_judgment"]
 prob_judge <- prob_judge[, .(PID, sess, firstBlock, block, itemId, 
                              trial_index, stimulus, response, rt)]
 
+# Add keys to probability judgment
+prob_judge_key <- fread(file.path("..", "data", "prob_judge_key.csv"))
+
+prob_judge <- merge(prob_judge, prob_judge_key[, .(itemId, short_desc)],
+                    by = "itemId", all.x = T)
+
+prob_judge[, short_desc := factor(short_desc,
+                                  levels = prob_judge_key$short_desc)]
+
 # Save probability judgment data
 write.csv(prob_judge, file = file.path(preprocDatDir, "prob_judge_data.csv"))
 
