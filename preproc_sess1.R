@@ -395,7 +395,7 @@ quest[, coup_rel_15 := 4 - coup_rel_15] # No representation w/o reform
 quest[, coup_rel_18 := 4 - coup_rel_18] # Reform will improve economic status
 quest[, coup_rel_20 := 4 - coup_rel_20] # No reform no Jewish state
 quest[, coup_rel_21 := 4 - coup_rel_21] # I support reform
-quest[, coup_rel_23 := 4 - coup_rel_21] # I support reform relative to two weeks ago
+quest[, coup_rel_23 := 4 - coup_rel_23] # I support reform relative to two weeks ago
 
 # Save questionnaire to file
 write.csv(quest, file = file.path(preprocDatDir, "quest_data.csv"))
