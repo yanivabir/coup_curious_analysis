@@ -72,7 +72,7 @@ save_r_script <- function(r_library,
 
     if (confirm){
         print("Going to run following script:\n")
-        print(script)
+        cat(paste0(script, collapse = "\n"))
         invisible(readline(prompt="Press [enter] to continue"))
     }
 
@@ -128,7 +128,7 @@ launch_model <- function(
     chains = 3,
     seed = 1,
     cores = 3,
-    control = list(),
+    control = "list()",
     memory = NULL,
     wall_time = "0-0:30",
     project = "test",
