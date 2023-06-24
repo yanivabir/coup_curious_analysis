@@ -8,25 +8,16 @@ dotR <- file.path(Sys.getenv("HOME"), ".R")
 if (!file.exists(dotR)) dir.create(dotR)
 M <- file.path(dotR, "Makevars")
 if (!file.exists(M)) file.create(M)
-cat("\nCXX14FLAGS=-O3 -march=native -mtune=native -fPIC",
-    "CXX14=clang++",
-    file = M, sep = "\n", append = TRUE)
+cat("CXX14FLAGS += -O3 -march=ARMv8.6-A -ftemplate-depth-256",
+    file = M, sep = "\n", append = FALSE)
 
 options(Ncpus = 12)
 
 # Install packages
-install.packages("devtools")
-library(devtools)
-install.packages("data.table")
-install.packages("rstan")
-install.packages("brms")
-install.packages("loo")
-install.packages("ggplot2")
-install.packages("cowplot")
-install.packages("GGally")
-install.packages("psych")
+# install.packages("devtools")
+# library(devtools)
+Sys.setenv(DOWNLOAD_STATIC_LIBV8 = 1)
+install.packages(c("data.table", "rstan", "brms", "brms", "ggplot2", "cowplot",
+                   "GGally","psych", "GPArotation", "BiocManager"))
 
-install.packages("BiocManager")
 BiocManager::install(c("pcaMethods"))
-
-install.packages("GPArotation")
