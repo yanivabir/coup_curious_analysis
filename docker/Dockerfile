@@ -53,5 +53,9 @@ RUN Rscript -e "install.packages('ggrain')"
 RUN Rscript -e "install.packages('lubridate')"
 RUN Rscript -e "install.packages('corrplot')"
 RUN Rscript -e "install.packages('rvest')"
+RUN apt-get update \
+&& apt-get install -y --no-install-recommends \
+libssh-dev
+RUN Rscript -e "install.packages('ssh')"
 
 
