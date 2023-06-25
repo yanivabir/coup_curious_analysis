@@ -137,7 +137,8 @@ launch_model <- function(
     r_library = "~",
     saved_models_fld = "./saved_models/",
     criteria = NULL,
-    confirm = TRUE
+    confirm = TRUE,
+    refit = FALSE
 ) {
     # Test no spaces in project folder name
     assert("No spaces allowed in project name", !grepl(" ", project))
@@ -153,11 +154,11 @@ launch_model <- function(
     local_model_file <- file.path(saved_models_fld, paste0(model_name, ".rds"))
 
     # Don't run if local saved model exists, mimicking brm behaviour
-    if(file.exists(local_model_file)){
+    if(!refit & file.exists(local_model_file)){
         print(paste0("Found local saved model ", model_name, ", not runninng."))
         return()
     }
-
+    
     # Open session
     session <- ssh_connect(paste0(user, "@burg.rcs.columbia.edu"))
 
@@ -174,6 +175,11 @@ launch_model <- function(
 
     # Create a projects folder if needed
     ssh_exec_wait(session, paste("mkdir -p", fld))
+    
+    # Remove saved file on Ginsburg if refit is True
+    if (refit){
+      ssh_exec_wait(session, paste("rm -f", file.path(fld, paste0(model_name, ".rds"))))
+    }
 
     # Send data to server
     save(data, file = data_file)
@@ -259,7 +265,7 @@ fetch_results <- function(
     project = "test",
     lab = "dslab",
     user = "ya2402",
-    saved_models_fld = "./saved_models/"
+    saved_models_fld = "../saved_models/"
 ) {
 
     ## Move to seperate function
