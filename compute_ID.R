@@ -1,0 +1,72 @@
+# This file contains functions computing individual differences index measures 
+# from questionnaire responses
+library(testit)
+
+computeAlpha <- function(data, name){
+  alpha <- psych::alpha(data[, -c("PID"), with = F])
+  return(data.table(measure = name,
+                    alpha = alpha$total$raw_alpha))
+}
+
+computeNaive <- function(quest){
+  
+  # Placeholder for alpha values
+  alphas <- data.table(measure = character(), alpha = numeric())
+  
+  ## Compute coup relevance
+  # Select items
+  coup_rel_items <- 
+    quest[, grepl("coup|PID", names(quest)), with = F]
+  
+  coup_relevance_items <- c(sapply(1:7, 
+                                   function(x) sprintf("coup_rel_%02d", x)), 
+                            "coup_rel_22")
+  
+  coup_attitude_items <- c(sapply(8:21, 
+                                  function(x) sprintf("coup_rel_%02d", x)), 
+                           "coup_rel_23")
+  
+  # Standardize each variable
+  cols = colnames(coup_rel_items[, -c("PID")])
+  coup_rel_items[, (cols) := lapply(.SD, scale), .SDcols=cols]
+  
+  # Compute alphas
+  alphas <- rbind(alphas, suppressWarnings(computeAlpha(coup_rel_items, "naive_coup_rel_avg")))
+  alphas <- rbind(alphas, suppressWarnings(computeAlpha(coup_rel_items[, 
+                                                         coup_relevance_items, 
+                                                         with = F], 
+                                          "naive_coup_relevance")))
+  alphas <- rbind(alphas, suppressWarnings(computeAlpha(coup_rel_items[, 
+                                                         coup_attitude_items, 
+                                                         with = F], 
+                                          "naive_coup_attitude")))
+  
+  
+  # Compute grand average
+  coup_rel_avg <- coup_rel_items[, .(naive_coup_rel_avg = rowMeans(.SD, na.rm = T)), 
+                                 by = "PID"]
+  # Compute relevance average
+  coup_rel_relevance <- 
+    coup_rel_items[, .(naive_coup_relevance = 
+                         rowMeans(.SD, na.rm = T)),
+                   .SDcols = coup_relevance_items, by = "PID"]
+  # Compute attitude average
+  coup_rel_attitude <- 
+    coup_rel_items[, .(naive_coup_attitude = 
+                         rowMeans(.SD, na.rm = T)),
+                   .SDcols = coup_attitude_items, by = "PID"]
+  
+  coup_rel <- merge(coup_rel_avg, coup_rel_relevance, by = "PID",
+                    all.x = T, all.y = T)
+  
+  coup_rel <- merge(coup_rel, coup_rel_attitude, by = "PID",
+                    all.x = T, all.y = T)
+  
+  assert("wrong number of participants in coup_rel", nrow(coup_rel) == nrow(quest))
+  assert("wrong number of columns in coup_rel", ncol(coup_rel) == 4)
+  
+  ## Compute affect
+  
+  
+  return(list(coup_rel, alphas))
+}
