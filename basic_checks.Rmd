@@ -15,7 +15,7 @@ theme_set(theme_minimal()  +
 
 sampleName <- "v1.01"
 
-source("open_data_and_exclude.R")
+source("load_data_and_exclude.R")
 list[wait, rating_clps, know_test, 
      prob_judge, quest, quality] = load_exclude(sampleName)
 
