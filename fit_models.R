@@ -38,7 +38,7 @@ contrasts(wait$block) <- c(-0.5, 0.5)
             seed = 1,
             ))
 
-# Simple rating model ----
+# Simple rating models ----
 jobid <- launch_model(data = rating_clps,
            formula = 'bf(mvbind(confidence, affect, useful) ~ 1 + block + (1 + block | p | PID) +
              (1 | q | questionId)) + cumulative() + set_rescor(F)',
@@ -54,36 +54,162 @@ jobid <- launch_model(data = rating_clps,
              prior(lkj(2), class = "cor")',
            model_name = "rm0",
            save_output = T,
-           iter = 20,
+           iter = 2000,
            chains = 3,
            seed = 1,
            cores = 30,
-           wall_time = "0-00:10",
+           wall_time = "0-05:00",
            project = "coup",
            criteria = "loo")
 
-jobid <- launch_model(
-  formula = cur_wait_bform0,
-  data = wait_ffit,
-  prior = "prior(normal(0,1), class = 'b', resp = 'waited') +
-        prior(normal(0,1), class = 'Intercept', resp = 'waited') + 
-        prior(normal(0,1), class = 'Intercept', resp = 'curiosity') +
-        prior(normal(0,1), class = 'sd', resp = 'waited') +
-        prior(lkj(2), class = 'cor') +
-        prior(normal(0,1), class = 'sigma', resp = 'curiosity')",
-  model_name = "cur_wait0",
-  save_output = TRUE,
-  iter = 2800,
-  chains = 3,
-  seed = 1,
-  cores = 30,
-  control = "list(adapt_delta = 0.85)",
-  wall_time = "0-00:30",
-  project = "energize",
-  criteria = "loo")
 
-(cur_wait_m0 <- fetch_results(
-  model_name = "cur_wait0",
-  project = "energize",
+(rm0 <- fetch_results(
+  model_name = "rm0",
+  project = "coup",
 ))
 
+# No block effect - this was better in previous experiments.
+jobid <- launch_model(data = rating_clps,
+                      formula = 'bf(mvbind(confidence, affect, useful) ~ 1 + (1 | p | PID) +
+             (1 | q | questionId)) + cumulative() + set_rescor(F)',
+                      prior = 'prior(normal(0,1), class = "Intercept", resp = "affect") +
+             prior(normal(0,1), class = "Intercept", resp = "confidence") +
+             prior(normal(0,1), class = "Intercept", resp = "useful") +
+             prior(normal(0,1), class = "sd", resp = "affect") +
+             prior(normal(0,1), class = "sd", resp = "confidence") +
+             prior(normal(0,1), class = "sd", resp = "useful") + 
+             prior(lkj(2), class = "cor")',
+                      model_name = "rm00",
+                      save_output = T,
+                      iter = 2000,
+                      chains = 3,
+                      seed = 1,
+                      cores = 30,
+                      wall_time = "0-05:00",
+                      project = "coup",
+                      criteria = "loo")
+
+(rm00 <- fetch_results(
+  model_name = "rm00",
+  project = "coup",
+))
+
+# Extract coefficient per questionId
+extract_coef_per_question <- function(m,
+                                      data,
+                                      re_formula = mvbind(confidence, affect, useful) ~ 1 + (1 |q| questionId),
+                                      file){
+  
+  # Prepare data to predict for
+  for_preds <- unique(data[, .(questionId, block)])[order(block, questionId)]
+  
+  # Generate predictions, summarized
+  preds <- fitted(m, 
+                  newdata = for_preds,
+                  re_formula = re_formula,
+                  scale = "linear",
+                  summary = T)
+  
+  # Collapse to single data.table
+  preds <- rbindlist(lapply(1:3, function(i) {
+    variable <- dimnames(preds)[[3]][i]
+    dat <- as.data.table(preds[,,i])
+    dat[, rating := variable]
+    return(dat)
+    }))
+  
+  
+  preds <- as.data.table(cbind(for_preds, preds))
+
+  write.csv(preds, file = file.path(savedModelsDir, paste0(file, ".csv")))
+  
+  # Plot in order
+  fp <- preds[order(rating, Estimate)]
+  fp[, idx := 1:.N, by = "rating"]
+  p1 <- ggplot(fp, aes(x = Estimate,
+                                           y = idx,
+                                           color = block)) +
+    geom_errorbarh(aes(xmin = `Q2.5`, xmax = `Q97.5`), alpha = 0.5) +
+    geom_point() +
+    facet_wrap("rating", scales = "free", nrow = 2) +
+    labs(x = "Estimate",
+         y = "",
+         color = "Question type")
+
+  # Plot against raw means
+  data_l <- melt(data, id.vars = c("PID", "sess", "questionId", "block"),
+                 variable.name = "rating")
+  rating_sum <- data_l[, .(raw_m = mean(value, na.rm = T),
+                         raw_se = sd(value) / sqrt(length(!is.na(value)))), 
+                       by = c("questionId", "rating")]
+
+  cur_m0_coef_sum <- merge(preds, rating_sum, by = c("questionId", "rating"))
+
+  p2 <- ggplot(cur_m0_coef_sum, aes(x = Estimate,
+                                    y = raw_m,
+                                    color = block)) +
+    geom_errorbarh(aes(xmin = `Q2.5`, xmax = `Q97.5`), alpha = 0.5) +
+    geom_errorbar(aes(ymin = raw_m - raw_se, ymax = raw_m + raw_se)) +
+    geom_point() +
+    facet_wrap("rating", scales = "free", nrow = 2) +
+    labs(x = "Estimate",
+         y = "Raw mean",
+         color = "Question type")
+
+  r <- cur_m0_coef_sum[, .(cor(Estimate, raw_m)), 
+                       by = "rating"]
+  print("Correlations b/w estimates and raw means:")
+  print(r)
+  
+  return(list(preds, p1, p2))
+}
+
+list[rating_preds, p1, p2] <- extract_coef_per_question(rm0, rating_clps, file = "rm0_question_preds")
+extract_coef_per_question(rm00, rating_clps, file = "rm00_question_preds")
+
+# Compare models
+loo_compare(rm0, rm00)
+
+# Fit rating waiting model ----
+rating_preds_w <- dcast(rating_preds, questionId + block ~ rating,
+                        value.var = c("Estimate", "Est.Error"))
+wait_ff <- merge(wait, rating_preds_w, by = c("questionId", "block"))
+wait_ff[, block := factor(block, levels = c("general", "coup"))]
+contrasts(wait_ff$block) <- c(-0.5, 0.5)
+
+jobid <- launch_model(data = wait_ff,
+                      formula = 'bf(choice ~ 1 + wait_duration + block + 
+                      me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
+                      me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
+                      me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId) +
+                      (1 + wait_duration + block + 
+                      me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
+                      me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
+                      me(Estimate_confidence, 
+                      sdx = Est.Error_confidence, gr = questionId) | PID) + 
+              (1 + wait_duration| questionId)) + categorical(refcat = "skip") +
+                      set_mecor(F)',
+                      prior = 'prior(lkj(2), class = "cor") +
+                      prior(normal(0,1), class = "meanme") +
+                      prior(normal(0,1), class = "sdme") +
+                      prior(normal(0,1), class = "b", dpar = "muknow") +
+                      prior(normal(0,1), class = "b", dpar = "muwait") +
+                      prior(normal(0,1), class = "Intercept", dpar = "muknow") +
+                      prior(normal(0,1), class = "Intercept", dpar = "muwait") +
+                      prior(normal(0,1), class = "sd", dpar = "muknow") +
+                      prior(normal(0,1), class = "sd", dpar = "muwait")',
+                      model_name = "rw_me0",
+                      save_output = T,
+                      iter = 2000,
+                      chains = 3,
+                      seed = 1,
+                      cores = 30,
+                      wall_time = "0-08:00",
+                      project = "coup",
+                      criteria = "loo")
+
+
+(rw_me0 <- fetch_results(
+  model_name = "rw_me0",
+  project = "coup",
+))
