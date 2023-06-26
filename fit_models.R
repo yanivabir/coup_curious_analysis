@@ -213,3 +213,44 @@ jobid <- launch_model(data = wait_ff,
   model_name = "rw_me0",
   project = "coup",
 ))
+
+# Add polynomial on confidence
+jobid <- launch_model(data = wait_ff,
+                      formula = 'bf(choice ~ 1 + wait_duration + block + 
+                      me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
+                      me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
+                      me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId) +
+                      I(me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId)^2) +
+                      (1 + wait_duration + block + 
+                      me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
+                      me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
+                      me(Estimate_confidence, sdx = Est.Error_confidence, 
+                        gr = questionId) +
+                      I(me(Estimate_confidence, sdx = Est.Error_confidence, 
+                        gr = questionId)^2)| PID) + 
+              (1 + wait_duration| questionId)) + categorical(refcat = "skip") +
+                      set_mecor(F)',
+                      prior = 'prior(lkj(2), class = "cor") +
+                      prior(normal(0,1), class = "meanme") +
+                      prior(normal(0,1), class = "sdme") +
+                      prior(normal(0,1), class = "b", dpar = "muknow") +
+                      prior(normal(0,1), class = "b", dpar = "muwait") +
+                      prior(normal(0,1), class = "Intercept", dpar = "muknow") +
+                      prior(normal(0,1), class = "Intercept", dpar = "muwait") +
+                      prior(normal(0,1), class = "sd", dpar = "muknow") +
+                      prior(normal(0,1), class = "sd", dpar = "muwait")',
+                      model_name = "rw_me1",
+                      save_output = T,
+                      iter = 3000,
+                      chains = 3,
+                      seed = 1,
+                      cores = 30,
+                      wall_time = "0-10:00",
+                      project = "coup",
+                      criteria = "loo")
+
+
+(rw_me1 <- fetch_results(
+  model_name = "rw_me1",
+  project = "coup",
+))
