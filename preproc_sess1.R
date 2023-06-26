@@ -154,7 +154,7 @@ wait_trial_index <- wait[category == "wait_question",
                          .(PID, questionId, trial_index)]
 
 # Arrange choices
-wait_choice <- dcast(wait[button_pressed != "null"], 
+wait_choice <- dcast(wait, 
                      PID + sess + firstBlock + block + type + questionId + 
                        wait_duration ~ category, value.var = "button_pressed")
 setnames(wait_choice, wait_cats[1:2], c("choice", "answer_clicked"))
@@ -247,7 +247,7 @@ mrt <- wait[, .(m_choice_rt = mean(choice_rt, na.rm = T),
 quality <- merge(quality, mrt, by = "PID", all.x=T)
 
 mchoice <- wait[, .(n_waited = sum(choice == "wait", na.rm = T),
-                    prop_missed = mean(is.na(choice) | 
+                    prop_missed = mean(choice == "no_resp" | 
                                      ((choice == "wait") & 
                                         (is.na(answer_clicked) | 
                                            is.na(wait_satisfaction))))), 
