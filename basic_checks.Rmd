@@ -510,39 +510,39 @@ corrplot::corrplot(cor(ctrl_quests[, -c("PID"), with = F],
 ```
 ```{r wait_skip_affect_motivation_choice}
 # Function to summarise data and merge with ID measure
-merge_w_ID <- function(wait_sum, ID, id, label){
+merge_w_ID <- function(resp_sum, ID, id, label){
   # Bin ID measures
   thisID <- ID[!is.na(get(id))]
   thisID[, bin_n := factor(dplyr::ntile(get(id), 6))]
   thisID[, bin := mean(get(id)), by = bin_n]
 
   # Merge
-  id_wait <- merge(wait_sum, thisID[, .(PID, bin)], by = "PID")
+  id_resp <- merge(resp_sum, thisID[, .(PID, bin)], by = "PID")
 
   # Average
-  id_wait_sum <- id_wait[, .(choice = mean(choice),
-                                         se = sd(choice) / sqrt(.N)), 
+  id_resp_sum <- id_resp[, .(resp = mean(resp),
+                                         se = sd(resp) / sqrt(.N)), 
                                      by = c("bin", "block")]
   
   # Label
-  id_wait_sum$measure <- label
+  id_resp_sum$measure <- label
   
-  return(id_wait_sum)
+  return(id_resp_sum)
 }
 
-plot_against_ID <- function(wait_sum, label){
+plot_against_ID <- function(resp_sum, label){
   # Pretty labels of question type
-  wait_sum[, block := factor(block,
+  resp_sum[, block := factor(block,
                              levels = levs,
                              labels = block_labels)]
   
   # Make plot for each measure
   measures <- c("coup_relevance", "coup_attitude", "affect", "motivation")
   
-  id_wait_pl <- lapply(measures, function(x) {
-    dat <- merge_w_ID(wait_sum, naive_ID, paste0("naive_", x), x)
-    return(ggplot(dat, aes(x = bin, y = choice, color = block)) +
-             geom_pointrange(aes(ymin = choice - se, ymax = choice + se)) +
+  id_resp_pl <- lapply(measures, function(x) {
+    dat <- merge_w_ID(resp_sum, naive_ID, paste0("naive_", x), x)
+    return(ggplot(dat, aes(x = bin, y = resp, color = block)) +
+             geom_pointrange(aes(ymin = resp - se, ymax = resp + se)) +
              scale_color_manual(values=block_colors) +
              labs(x = str_to_sentence(gsub("_", " ", x)),
                   y = label,
@@ -550,23 +550,29 @@ plot_against_ID <- function(wait_sum, label){
   })
   
   # Fix y range to be the same for all
-  ranges <- sapply(id_wait_pl, function(p) layer_scales(p)$y$range$range)
-  id_wait_pl <- lapply(id_wait_pl, function(p) p + ylim(min(ranges), max(ranges)))
+  ranges <- sapply(id_resp_pl, function(p) layer_scales(p)$y$range$range)
+  id_resp_pl <- lapply(id_resp_pl, function(p) p + ylim(min(ranges), max(ranges)))
   
   # Plot in grid
-  return(plot_grid(plotlist = id_wait_pl,
+  return(plot_grid(plotlist = id_resp_pl,
                    nrow = 2))
 }
 
 ## Summarize wait vs. skip by participant
 wait_sum <- wait[choice %in% c("skip", "wait"), 
-                 .(choice = mean(choice == "wait")), by = c("PID", "block")]
+                 .(resp = mean(choice == "wait")), by = c("PID", "block")]
 plot_against_ID(wait_sum, "Prop. waited")
 
 ## Summarize known vs. rest by participant
-wait_sum <- wait[choice %in% c("skip", "know"),  .(choice = mean(choice == "know")), by = c("PID", "block")]
+wait_sum <- wait[choice %in% c("skip", "know"),  
+                 .(resp = mean(choice == "know")), by = c("PID", "block")]
 plot_against_ID(wait_sum, "Prop. known")
 
+## Summarize satsifaction
+satis_sum <- wait[!is.na(wait_satisfaction), 
+                  .(resp = mean(wait_satisfaction) + 1),
+                  by = c("PID", "block")]
+plot_against_ID(satis_sum, "Satisfaction")
 ```
 
 ```{r all_choice_affect_motivation_choice}
