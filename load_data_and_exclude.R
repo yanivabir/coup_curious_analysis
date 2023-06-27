@@ -106,6 +106,12 @@ load_exclude <- function(sampleName){
                           useful = ifelse(is.na(useful_neg), 
                                           useful_pos, 4 - useful_neg) + 1)]
   
+  # Remove skipped trials
+  pre <- nrow(wait)
+  wait <- wait[choice != "no_resp"]
+  print(sprintf("Removing %0d trials with no response (%2.0f%% of trials)",
+                pre - nrow(wait), (pre - nrow(wait))/pre*100))
+  
   # Value transformations
   wait[, choice := factor(choice, levels = c("skip", "wait", "know"))]
   wait[, block := factor(block, levels = c("general", "coup"))]
