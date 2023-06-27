@@ -19,6 +19,9 @@ source("load_data_and_exclude.R")
 list[wait, rating_clps, know_test, 
      prob_judge, quest, quality] = load_exclude(sampleName)
 
+source("compute_ID.R")
+list[naive_ID, alphas] <- computeNaive(quest)
+
 # Coup relevance key
 coup_rel_key <- fread(file.path("..", "data", "coup_rel_key.csv"))
 
@@ -503,6 +506,102 @@ ctrl_quests <- quest[, grep("PID|stai|reg_Q|gallup|apathy",
 corrplot::corrplot(cor(ctrl_quests[, -c("PID"), with = F],
                        use = "pairwise.complete.obs"),
                    method = "square", tl.cex = 0.5) 
+
+```
+```{r wait_skip_affect_motivation_choice}
+# Function to summarise data and merge with ID measure
+merge_w_ID <- function(wait_sum, ID, id, label){
+  # Bin ID measures
+  thisID <- ID[!is.na(get(id))]
+  thisID[, bin_n := factor(dplyr::ntile(get(id), 6))]
+  thisID[, bin := mean(get(id)), by = bin_n]
+
+  # Merge
+  id_wait <- merge(wait_sum, thisID[, .(PID, bin)], by = "PID")
+
+  # Average
+  id_wait_sum <- id_wait[, .(choice = mean(choice),
+                                         se = sd(choice) / sqrt(.N)), 
+                                     by = c("bin", "block")]
+  
+  # Label
+  id_wait_sum$measure <- label
+  
+  return(id_wait_sum)
+}
+
+plot_against_ID <- function(wait_sum, label){
+  # Pretty labels of question type
+  wait_sum[, block := factor(block,
+                             levels = levs,
+                             labels = block_labels)]
+  
+  # Make plot for each measure
+  measures <- c("coup_relevance", "coup_attitude", "affect", "motivation")
+  
+  id_wait_pl <- lapply(measures, function(x) {
+    dat <- merge_w_ID(wait_sum, naive_ID, paste0("naive_", x), x)
+    return(ggplot(dat, aes(x = bin, y = choice, color = block)) +
+             geom_pointrange(aes(ymin = choice - se, ymax = choice + se)) +
+             scale_color_manual(values=block_colors) +
+             labs(x = str_to_sentence(gsub("_", " ", x)),
+                  y = label,
+                  color = "Question type"))
+  })
+  
+  # Fix y range to be the same for all
+  ranges <- sapply(id_wait_pl, function(p) layer_scales(p)$y$range$range)
+  id_wait_pl <- lapply(id_wait_pl, function(p) p + ylim(min(ranges), max(ranges)))
+  
+  # Plot in grid
+  return(plot_grid(plotlist = id_wait_pl,
+                   nrow = 2))
+}
+
+## Summarize wait vs. skip by participant
+wait_sum <- wait[choice %in% c("skip", "wait"), 
+                 .(choice = mean(choice == "wait")), by = c("PID", "block")]
+plot_against_ID(wait_sum, "Prop. waited")
+
+## Summarize known vs. rest by participant
+wait_sum <- wait[choice %in% c("skip", "know"),  .(choice = mean(choice == "know")), by = c("PID", "block")]
+plot_against_ID(wait_sum, "Prop. known")
+
+```
+
+```{r all_choice_affect_motivation_choice}
+
+## Summarize waiting task by participant
+wait_sum <- wait[, .(wait = mean(choice == "wait"),
+                     skip = mean(choice == "skip"),
+                     know = mean(choice == "know")), by = c("PID", "block")]
+
+# Pretty labels of question type
+wait_sum[, block := factor(block,
+                          levels = levs,
+                          labels = block_labels)]
+
+# Bin ID measures
+motivation <- naive_ID[!is.na(naive_motivation_avg)]
+motivation[, motivation_bin_n := factor(dplyr::ntile(naive_motivation_avg, 5))]
+motivation[, motivation_bin := mean(naive_motivation_avg), by = "motivation_bin_n"]
+
+# Merge
+motivation_wait <- merge(wait_sum, motivation[, .(PID, motivation_bin)], by = "PID")
+
+# Transform
+motivation_wait_l <- melt(motivation_wait, measure.vars = c("skip", "wait", "know"),
+                        value.name = "prop", variable.name = "choice")
+
+motivation_wait_sum <- motivation_wait_l[, .(prop = mean(prop),
+                                         se = sd(prop) / sqrt(.N)), 
+                                     by = c("motivation_bin", "choice", "block")]
+
+motivation_wait_sum[, choice := factor(choice, levels = c("wait", "know", "skip"))]
+
+ggplot(motivation_wait_sum, aes(x = motivation_bin, y = prop, color = choice)) +
+  geom_pointrange(aes(ymin = prop -se, ymax = prop+se)) +
+  facet_wrap("block") + theme(legend.position = "top")
 
 ```
 
