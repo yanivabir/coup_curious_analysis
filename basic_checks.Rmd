@@ -409,7 +409,7 @@ coup_rel_l <- melt(coup_rel, id.vars = c("PID", "date"))
 # Split to relevance and attitude
 coup_rel_l[, item_n := as.numeric(strsplit(as.character(variable), "_")[[1]][3]), 
            by = .(variable)]
-coup_rel_l[, scale := ifelse(item_n < 8, "Relevance", "Attitude")]
+coup_rel_l[, scale := ifelse((item_n < 8) | (item_n == 22), "Relevance", "Attitude")]
 
 coup_rel_sum <- coup_rel_l[, .(value = mean(value + 1, na.rm = T)), by = .(PID, date, scale)]
 coup_rel_sum_w <- dcast(coup_rel_sum, PID + date ~ scale)
@@ -600,3 +600,34 @@ cong_sum <- rating_clps[,
 plot_against_ID(cong_sum, "Belief Congruence")
 
 ```
+```{r ID_measures_by_date}
+# Merge dates into data.table
+ID_by_date <- merge(naive_ID, quality[, .(PID, date)], by = "PID", all.x = T)
+
+# Wide to long
+ID_by_date <- melt(ID_by_date, id.vars = c("PID", "date"),
+                   measure.vars = c("naive_coup_relevance", 
+                                    "naive_coup_attitude",
+                                    "naive_affect",
+                                    "naive_motivation"))
+
+# Summarise by date
+ID_by_date <- ID_by_date[, .(value = mean(value, na.rm =T),
+                             se = se(value)), by = c("date", "variable")]
+
+ID_by_date[, coup_related := grepl("coup", variable)]
+ID_by_date[, variable := factor(variable, levels = levels(variable),
+    labels = str_to_sentence(gsub("naive ", "", 
+                                  gsub("_", " ", levels(variable)))))]
+
+ggplot(ID_by_date, aes(x = date, y = value, color = variable)) +
+  geom_pointrange(aes(ymin = value - se, ymax = value + se)) +
+  theme(legend.position = "top", panel.spacing = unit(30, "points"),
+        strip.background = element_blank(),
+        strip.text = element_blank()) +
+  facet_wrap("coup_related") +
+  labs(x = "Date",
+       y = "Average value (std.)",
+       color = "Measure")
+```
+
