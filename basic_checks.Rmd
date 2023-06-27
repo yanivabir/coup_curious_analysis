@@ -541,12 +541,13 @@ plot_against_ID <- function(resp_sum, label){
   
   id_resp_pl <- lapply(measures, function(x) {
     dat <- merge_w_ID(resp_sum, naive_ID, paste0("naive_", x), x)
-    return(ggplot(dat, aes(x = bin, y = resp, color = block)) +
+    return(ggplot(dat[!is.na(resp)], aes(x = bin, y = resp, color = block)) +
              geom_pointrange(aes(ymin = resp - se, ymax = resp + se)) +
              scale_color_manual(values=block_colors) +
              labs(x = str_to_sentence(gsub("_", " ", x)),
                   y = label,
-                  color = "Question type"))
+                  color = "Question type") +
+             theme(plot.margin = margin(10,10,2,3)))
   })
   
   # Fix y range to be the same for all
@@ -573,4 +574,29 @@ satis_sum <- wait[!is.na(wait_satisfaction),
                   .(resp = mean(wait_satisfaction) + 1),
                   by = c("PID", "block")]
 plot_against_ID(satis_sum, "Satisfaction")
+
+## Summarize usefulness ratings
+useful_sum <- rating_clps[, 
+                  .(resp = mean(useful)),
+                  by = c("PID", "block")]
+plot_against_ID(useful_sum, "Usefulness")
+
+## Summarize affect ratings
+affect_sum <- rating_clps[, 
+                  .(resp = mean(affect)),
+                  by = c("PID", "block")]
+plot_against_ID(affect_sum, "Question affect")
+
+## Summarize confidence ratings
+conf_sum <- rating_clps[, 
+                  .(resp = mean(confidence)),
+                  by = c("PID", "block")]
+plot_against_ID(conf_sum, "Confidence")
+
+## Summarize congruence ratings
+cong_sum <- rating_clps[, 
+                  .(resp = mean(congruence)),
+                  by = c("PID", "block")]
+plot_against_ID(cong_sum, "Belief Congruence")
+
 ```
