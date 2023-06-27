@@ -31,7 +31,8 @@ computeNaive <- function(quest){
   coup_rel_items[, (cols) := lapply(.SD, scale), .SDcols=cols]
   
   # Compute alphas
-  alphas <- rbind(alphas, suppressWarnings(computeAlpha(coup_rel_items, "naive_coup_rel_avg")))
+  alphas <- rbind(alphas, suppressWarnings(computeAlpha(coup_rel_items, 
+                                                        "naive_coup_rel_quest")))
   alphas <- rbind(alphas, suppressWarnings(computeAlpha(coup_rel_items[, 
                                                          coup_relevance_items, 
                                                          with = F], 
@@ -43,7 +44,8 @@ computeNaive <- function(quest){
   
   
   # Compute grand average
-  coup_rel_avg <- coup_rel_items[, .(naive_coup_rel_avg = rowMeans(.SD, na.rm = T)), 
+  coup_rel <- coup_rel_items[, .(naive_coup_rel_quest = 
+                                       rowMeans(.SD, na.rm = T)), 
                                  by = "PID"]
   # Compute relevance average
   coup_rel_relevance <- 
@@ -56,17 +58,58 @@ computeNaive <- function(quest){
                          rowMeans(.SD, na.rm = T)),
                    .SDcols = coup_attitude_items, by = "PID"]
   
-  coup_rel <- merge(coup_rel_avg, coup_rel_relevance, by = "PID",
+  coup_rel <- merge(coup_rel, coup_rel_relevance, by = "PID",
                     all.x = T, all.y = T)
   
   coup_rel <- merge(coup_rel, coup_rel_attitude, by = "PID",
                     all.x = T, all.y = T)
   
-  assert("wrong number of participants in coup_rel", nrow(coup_rel) == nrow(quest))
+  assert("wrong number of participants in coup_rel", 
+         nrow(coup_rel) == nrow(quest))
   assert("wrong number of columns in coup_rel", ncol(coup_rel) == 4)
   
   ## Compute affect
+  # Select items
+  affect_items <- 
+    quest[, grepl("PID|stai|gallup", names(quest)), with = F]
   
+  # Standardize each variable
+  cols = colnames(affect_items[, -c("PID")])
+  affect_items[, (cols) := lapply(.SD, scale), .SDcols=cols]
   
-  return(list(coup_rel, alphas))
+  # Compute alpha
+  alphas <- rbind(alphas, suppressWarnings(computeAlpha(affect_items, 
+                                                        "naive_affect")))
+  
+  # Compute average
+  affect <- affect_items[, .(naive_affect = rowMeans(.SD, na.rm = T)), 
+                               by = "PID"]
+  
+  ## Compute motivation
+  # Select items
+  motivation_items <- 
+    quest[, grepl("PID|reg_Q|apathy", names(quest)), with = F]
+  
+  # Standardize each variable
+  cols = colnames(motivation_items[, -c("PID")])
+  motivation_items[, (cols) := lapply(.SD, scale), .SDcols=cols]
+  
+  # Compute alpha
+  alphas <- rbind(alphas, suppressWarnings(computeAlpha(motivation_items, 
+                                                        "naive_motivation")))
+  
+  # Compute average
+  motivation <- motivation_items[, .(naive_motivation = 
+                                           rowMeans(.SD, na.rm = T)), 
+                             by = "PID"]
+  
+  ## Merge all
+  naive_ID <- merge(coup_rel, affect, by = "PID")
+  naive_ID <- merge(naive_ID, motivation, by = "PID")
+  
+  assert("wrong number of participants in coup_rel", 
+         nrow(naive_ID) == nrow(quest))
+  assert("wrong number of columns in coup_rel", ncol(naive_ID) == 6)
+  
+  return(list(naive_ID, alphas))
 }
