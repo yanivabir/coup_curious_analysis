@@ -568,7 +568,7 @@ wait_sum <- wait[choice %in% c("skip", "know"),
                  .(resp = mean(choice == "know")), by = c("PID", "block")]
 plot_against_ID(wait_sum, "Prop. known")
 
-## Summarize satsifaction
+## Summarize satisfaction
 satis_sum <- wait[!is.na(wait_satisfaction), 
                   .(resp = mean(wait_satisfaction) + 1),
                   by = c("PID", "block")]
