@@ -58,4 +58,3 @@ RUN apt-get update \
 libssh-dev
 RUN Rscript -e "install.packages('ssh')"
 
-
