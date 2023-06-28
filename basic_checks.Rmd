@@ -634,13 +634,30 @@ ggplot(ID_by_date, aes(x = date, y = value, color = variable)) +
 ```{r knowledge_know}
 know_test_sum <- know_test[, .(correct = mean(correct)), by = .(PID, block)]
 
-wait_know_sum <- wait[, .(know = mean(choice == "know")), by = .(PID, block)]
+know_v_skip <- wait[choice %in% c("know", "skip"), .(know_v_skip = mean(choice == "know")), by = .(PID, block)]
 
-know_know <- merge(know_test_sum, wait_know_sum, by = c("PID", "block"))
+know_prop <- wait[, .(know_prop = mean(choice == "know")), by = .(PID, block)]
 
-ggplot(know_know, aes(x = correct, y = know, color = block)) +
+wait_v_skip <- wait[choice %in% c("wait", "skip"), .(waited = mean(choice == "wait")), by = .(PID, block)]
+
+know_sum <- merge(know_test_sum, know_v_skip, by = c("PID", "block"), all = T)
+know_sum <- merge(know_sum, know_prop, by = c("PID", "block"), all = T)
+know_sum <- merge(know_sum, wait_v_skip, by = c("PID", "block"), all = T)
+
+know_sum_l <- melt(know_sum, id.vars = c("PID", "block", "correct"))
+
+know_sum_l[, block := factor(block, levels = levs, labels = block_labels)]
+
+ggplot(know_sum_l, aes(x = correct, y = value, color = block)) +
   geom_density_2d() +
   scale_color_manual(values=block_colors) +
-  geom_smooth(formula=y~x, se=F)
+  geom_smooth(formula=y~x, se=F, method="lm") +
+  facet_grid(variable ~ block) +
+  theme(legend.position = "top") +
+  labs(x = "Test prop. correct",
+       y = "",
+       color = "Question type")
+
+print(know_sum_l[, .(r = cor(correct, value, use = "complete.obs")), by = c("block", "variable")])
 ```
 
