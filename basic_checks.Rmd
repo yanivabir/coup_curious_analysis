@@ -631,3 +631,16 @@ ggplot(ID_by_date, aes(x = date, y = value, color = variable)) +
        color = "Measure")
 ```
 
+```{r knowledge_know}
+know_test_sum <- know_test[, .(correct = mean(correct)), by = .(PID, block)]
+
+wait_know_sum <- wait[, .(know = mean(choice == "know")), by = .(PID, block)]
+
+know_know <- merge(know_test_sum, wait_know_sum, by = c("PID", "block"))
+
+ggplot(know_know, aes(x = correct, y = know, color = block)) +
+  geom_density_2d() +
+  scale_color_manual(values=block_colors) +
+  geom_smooth(formula=y~x, se=F)
+```
+
