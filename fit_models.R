@@ -214,6 +214,8 @@ jobid <- launch_model(data = wait_ff,
   project = "coup",
 ))
 
+conditional_effects(rw_me0, categorical = T)
+
 # Add polynomial on confidence
 jobid <- launch_model(data = wait_ff,
                       formula = 'bf(choice ~ 1 + wait_duration + block + 
@@ -245,12 +247,59 @@ jobid <- launch_model(data = wait_ff,
                       chains = 3,
                       seed = 1,
                       cores = 30,
-                      wall_time = "0-10:00",
+                      wall_time = "0-15:00",
                       project = "coup",
                       criteria = "loo")
 
 
 (rw_me1 <- fetch_results(
   model_name = "rw_me1",
+  project = "coup",
+))
+
+# Add naive ID measures ----
+source("compute_ID.R")
+list[naive_ID, alphas] <- computeNaive(quest)
+
+wait_ID_ff <- merge(wait_ff, naive_ID, by = "PID", all.x = T)
+
+jobid <- launch_model(data = wait_ID_ff,
+                      formula = 'bf(choice ~ 1 + wait_duration + block + 
+                      naive_coup_relevance + naive_coup_attitude +
+                      naive_affect + naive_motivation +
+                      me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
+                      me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
+                      me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId) +
+                      (1 + wait_duration + block + 
+                      me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
+                      me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
+                      me(Estimate_confidence, 
+                      sdx = Est.Error_confidence, gr = questionId) | PID) + 
+              (1 + wait_duration +
+              naive_coup_relevance + naive_coup_attitude +
+                      naive_affect + naive_motivation | questionId)) + categorical(refcat = "skip") +
+                      set_mecor(F)',
+                      prior = 'prior(lkj(2), class = "cor") +
+                      prior(normal(0,1), class = "meanme") +
+                      prior(normal(0,1), class = "sdme") +
+                      prior(normal(0,1), class = "b", dpar = "muknow") +
+                      prior(normal(0,1), class = "b", dpar = "muwait") +
+                      prior(normal(0,1), class = "Intercept", dpar = "muknow") +
+                      prior(normal(0,1), class = "Intercept", dpar = "muwait") +
+                      prior(normal(0,1), class = "sd", dpar = "muknow") +
+                      prior(normal(0,1), class = "sd", dpar = "muwait")',
+                      model_name = "rwid_me0",
+                      save_output = T,
+                      iter = 3000,
+                      chains = 3,
+                      seed = 1,
+                      cores = 30,
+                      wall_time = "0-20:00",
+                      project = "coup",
+                      criteria = "loo")
+
+
+(rwid_me0 <- fetch_results(
+  model_name = "rwid_me0",
   project = "coup",
 ))
