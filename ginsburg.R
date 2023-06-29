@@ -16,6 +16,7 @@ send_file <- function(session, file, fld){
 
 # Create and save r script to run model
 save_r_script <- function(r_library,
+    cmdstan_path,
     data_file,
     formula,
     prior,
@@ -37,6 +38,7 @@ save_r_script <- function(r_library,
     script <- c(
         str_glue(".libPaths('{r_library}')"),
         "library(brms)",
+        str_glue("Sys.setenv(CMDSTAN='{cmdstan_path}')"),
         "library(cmdstanr)",
         str_glue("load('./{data_file}')"),
         str_glue("(m <- brm({formula},
@@ -134,7 +136,8 @@ launch_model <- function(
     project = "test",
     lab = "dslab",
     user = "ya2402",
-    r_library = "~",
+    r_library = "/burg/dslab/users/ya2402/R_lib",
+    cmdstan_path = "/burg/dslab/users/ya2402/R_lib/.cmdstan/cmdstan-2.32.2",
     saved_models_fld = "./saved_models/",
     criteria = NULL,
     confirm = TRUE,
@@ -181,12 +184,9 @@ launch_model <- function(
       ssh_exec_wait(session, paste("rm -f", file.path(fld, paste0(model_name, ".rds"))))
     }
 
-    # Send data to server
-    save(data, file = data_file)
-    send_file(session, data_file, fld)
-
     # Send rscript to server
     r_script <- save_r_script(r_library,
+        cmdstan_path,
         data_file,
         formula,
         prior,
@@ -212,6 +212,10 @@ launch_model <- function(
         r_script
     )
     send_file(session, sh_script, fld)
+    
+    # Send data to server
+    save(data, file = data_file)
+    send_file(session, data_file, fld)
 
     # Launch task on server
     out <- ssh_exec_internal(session, command = c(
