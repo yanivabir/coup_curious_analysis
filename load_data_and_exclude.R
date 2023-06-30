@@ -85,7 +85,10 @@ load_exclude <- function(sampleName){
   quality <- quality[!is.na(date)]
   dates <- unique(quality$date)
   for (d in dates){
-    if ((d-1) %in% as.numeric(dates)){
+    if ((d-2) %in% as.numeric(dates)){
+      quality[date == d, date := date - 2]
+    }
+    else if ((d-1) %in% as.numeric(dates)){
       quality[date == d, date := date - 1]
     }
   }
