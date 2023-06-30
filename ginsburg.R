@@ -37,6 +37,7 @@ save_r_script <- function(r_library,
     # Create r script to run model
     script <- c(
         str_glue(".libPaths('{r_library}')"),
+        "print(tempdir())",
         "library(brms)",
         str_glue("Sys.setenv(CMDSTAN='{cmdstan_path}')"),
         "library(cmdstanr)",
@@ -87,7 +88,8 @@ save_sh_script <- function(lab,
     cores,
     wall_time,
     memory,
-    r_file_name) {
+    r_file_name,
+    tmpdir) {
     script <- c(
         "#!/bin/sh",
         str_glue("#SBATCH --account={lab}"),
@@ -108,6 +110,7 @@ save_sh_script <- function(lab,
 
     script <- c(
         script, 
+        str_glue("export TMPDIR={tmpdir}"),
         "module load R",
         str_glue("Rscript {r_file_name}")
     )
@@ -153,6 +156,7 @@ launch_model <- function(
     # Paths
     ufld <- paste0("/burg/", lab, "/users/", user) # User folder on Ginsburg
     fld <- paste0(ufld, "/autorun_models/", project) # Project folder to work in on Gisnburg
+    tmpdir <- file.path(ufld, "tmp") # Local tmp folder to avoid small size
     data_file <- paste0(model_name, "_data.rda")
     local_model_file <- file.path(saved_models_fld, paste0(model_name, ".rds"))
 
@@ -178,6 +182,9 @@ launch_model <- function(
 
     # Create a projects folder if needed
     ssh_exec_wait(session, paste("mkdir -p", fld))
+    
+    # Create a tmp folder if needed
+    ssh_exec_wait(session, paste("mkdir -p", tmpdir))
     
     # Remove saved file on Ginsburg if refit is True
     if (refit){
@@ -209,7 +216,8 @@ launch_model <- function(
         cores,
         wall_time,
         memory,
-        r_script
+        r_script,
+        tmpdir
     )
     send_file(session, sh_script, fld)
     
