@@ -66,7 +66,7 @@ save_r_script <- function(r_library,
     # Add criteria if needed
     if (!is.null(criteria)){
         script <- c(script,
-            str_glue("add_criterion(m, '{criteria}', cores = {cores})"))
+            str_glue("add_criterion(m, '{criteria}', cores = {cores}, moment_match = T)"))
     }
 
     # Save .R file locally
