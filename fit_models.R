@@ -200,13 +200,14 @@ jobid <- launch_model(data = wait_ff,
                       prior(normal(0,1), class = "sd", dpar = "muwait")',
                       model_name = "rw_me0",
                       save_output = T,
-                      iter = 2000,
+                      iter = 3500,
                       chains = 3,
                       seed = 1,
                       cores = 30,
-                      wall_time = "0-08:00",
+                      wall_time = "0-17:00",
                       project = "coup",
-                      criteria = "loo")
+                      criteria = "loo",
+                      refit = T)
 
 
 (rw_me0 <- fetch_results(
@@ -243,11 +244,11 @@ jobid <- launch_model(data = wait_ff,
                       prior(normal(0,1), class = "sd", dpar = "muwait")',
                       model_name = "rw_me1",
                       save_output = T,
-                      iter = 3000,
+                      iter = 3500,
                       chains = 3,
                       seed = 1,
                       cores = 30,
-                      wall_time = "0-15:00",
+                      wall_time = "0-17:00",
                       project = "coup",
                       criteria = "loo")
 
@@ -257,24 +258,70 @@ jobid <- launch_model(data = wait_ff,
   project = "coup",
 ))
 
+# Add block interactions
+rw_me2_jobid <- launch_model(data = wait_ff,
+                      formula = 'bf(choice ~ 1 + wait_duration +
+                      block * me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
+                      block * me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
+                      block * me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId) +
+                      block * I(me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId)^2) +
+                      (1 + wait_duration +
+                      block * me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
+                      block * me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
+                      block * me(Estimate_confidence, sdx = Est.Error_confidence, 
+                        gr = questionId) +
+                      block * I(me(Estimate_confidence, sdx = Est.Error_confidence, 
+                        gr = questionId)^2)| PID) + 
+              (1 + wait_duration| questionId)) + categorical(refcat = "skip") +
+                      set_mecor(F)',
+                      prior = 'prior(lkj(2), class = "cor") +
+                      prior(normal(0,1), class = "meanme") +
+                      prior(normal(0,1), class = "sdme") +
+                      prior(normal(0,1), class = "b", dpar = "muknow") +
+                      prior(normal(0,1), class = "b", dpar = "muwait") +
+                      prior(normal(0,1), class = "Intercept", dpar = "muknow") +
+                      prior(normal(0,1), class = "Intercept", dpar = "muwait") +
+                      prior(normal(0,1), class = "sd", dpar = "muknow") +
+                      prior(normal(0,1), class = "sd", dpar = "muwait")',
+                      model_name = "rw_me2",
+                      save_output = T,
+                      iter = 3500,
+                      chains = 3,
+                      seed = 1,
+                      cores = 30,
+                      wall_time = "0-17:00",
+                      project = "coup",
+                      criteria = "loo")
+
+
+(rw_me2 <- fetch_results(
+  model_name = "rw_me2",
+  project = "coup",
+))
+
+loo_compare(rw_me2, rw_me1, rw_me0)
+
 # Add naive ID measures ----
 source("compute_ID.R")
 list[naive_ID, alphas] <- computeNaive(quest)
 
 wait_ID_ff <- merge(wait_ff, naive_ID, by = "PID", all.x = T)
 
-jobid <- launch_model(data = wait_ID_ff,
-                      formula = 'bf(choice ~ 1 + wait_duration + block + 
-                      naive_coup_relevance + naive_coup_attitude +
-                      naive_affect + naive_motivation +
-                      me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
-                      me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
-                      me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId) +
-                      (1 + wait_duration + block + 
-                      me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
-                      me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
-                      me(Estimate_confidence, 
-                      sdx = Est.Error_confidence, gr = questionId) | PID) + 
+jobid_rwid_me0 <- launch_model(data = wait_ID_ff,
+                      formula = 'bf(choice ~ 1 + wait_duration + 
+                      block * naive_coup_relevance + block * naive_coup_attitude +
+                      block * naive_affect + block * naive_motivation +
+                      block * me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
+                      block * me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
+                      block * me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId) +
+                      block * I(me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId)^2) +
+                      (1 + wait_duration +
+                      block * me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
+                      block * me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
+                      block * me(Estimate_confidence, sdx = Est.Error_confidence, 
+                        gr = questionId) +
+                      block * I(me(Estimate_confidence, sdx = Est.Error_confidence, 
+                        gr = questionId)^2)| PID) + 
               (1 + wait_duration +
               naive_coup_relevance + naive_coup_attitude +
                       naive_affect + naive_motivation | questionId)) + categorical(refcat = "skip") +
@@ -290,7 +337,7 @@ jobid <- launch_model(data = wait_ID_ff,
                       prior(normal(0,1), class = "sd", dpar = "muwait")',
                       model_name = "rwid_me0",
                       save_output = T,
-                      iter = 3000,
+                      iter = 3500,
                       chains = 3,
                       seed = 1,
                       cores = 30,
