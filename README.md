@@ -8,6 +8,21 @@
  
 ## Progress log:
 
+### 07/02/2023
+- Models for ratings with measurement error fitting well. We do see an inverse u-shape for confidence, as evidenced by a negative quadratic term. Considerably larger for waiting than for knowing. Need to plot this - but waiting for model with interaction with block to fit, and then will plot based on that.
+
+- A glance at conditional_effects confirms that as expected model predictions are much clearer than plotting raw data.
+
+- Fitting individual differneces measure model. For now, no interaction with ratings.
+
+- I think we cannot use brms for the full mediation model. It will have to be a very complicated stan one. :(
+
+- Tentative plan:
+
+- [ ] Plot model predictions for ratings
+
+- [ ] Plot model predictions for naive ID measures.
+
 ### 06/27/2023
 - Looking at waiting and knowing - it is hard to plot anything but wait v. skip and know v. skip. Trying know v. rest looks messier, plotting all three together is not interpertable, unless you use model fits (at least I hope so).
 
@@ -24,7 +39,7 @@
 
 -- [ ] Represent mixed results
 
-- [ ] Observe development of factors over time, and relationship to demographics
+- [x] Observe development of factors over time, and relationship to demographics
 
 - [x] Relationship of factors with epistemic behaviour
 
