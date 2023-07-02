@@ -152,6 +152,10 @@ launch_model <- function(
     # Replace all double with single quotes
     formula <- gsub('"', "'", formula)
     prior <- gsub('"', "'", prior)
+    
+    # Keep only needed columns in data to reduce traffic
+    data_cols <- all.vars(eval(parse(text = formula))$formula)
+    data <- data[, data_cols, with = F]
 
     # Paths
     ufld <- paste0("/burg/", lab, "/users/", user) # User folder on Ginsburg
