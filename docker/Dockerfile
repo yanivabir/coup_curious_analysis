@@ -57,4 +57,4 @@ RUN apt-get update \
 && apt-get install -y --no-install-recommends \
 libssh-dev
 RUN Rscript -e "install.packages('ssh')"
-
+RUN Rscript -e "tinytex::install_tinytex()"
