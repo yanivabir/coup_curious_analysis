@@ -8,6 +8,11 @@
  
 ## Progress log:
 
+### 07/05/2023
+- Plotting with me term and quadratic predictor is broken in brms, and doing it on my own is not straightforward.
+
+- Should probably just start working on one grand Stan model before plotting.
+
 ### 07/02/2023
 - Models for ratings with measurement error fitting well. We do see an inverse u-shape for confidence, as evidenced by a negative quadratic term. Considerably larger for waiting than for knowing. Need to plot this - but waiting for model with interaction with block to fit, and then will plot based on that.
 
