@@ -14,6 +14,11 @@ preprocDatDir <- file.path("..", "data", sampleName, "preproc")
 # Load data ----
 # List relevant files
 files <- list.files(rawDatDir, pattern = "sess1")
+
+# Remove empty files
+files <- files[sapply(files, function(x) file.size(file.path(rawDatDir, x)) > 10)]
+
+# Split by type
 mfiles <- files[grepl(".csv", files, fixed =T) & !grepl("int", files) & !grepl("yaniv", files)]
 intfiles <- files[grepl(".csv", files, fixed =T) & grepl("int", files) & !grepl("yaniv", files)]
 midgamfiles <- list.files(midgamDatDir, pattern = ".xls")
