@@ -2,6 +2,7 @@
 library(data.table)
 setDTthreads(11)
 library(jsonlite)
+library(testit)
 
 sampleName <- "v1.01"
 rawDatDir <- file.path("..", "data", sampleName, "raw")
@@ -112,6 +113,9 @@ assert("NAs in recall data", sum(is.na(recall[choice == "yes"]$recall)) == 0)
 # Remove html from stimuli
 recall[, question := gsub("<div class='question'>|</div>", "", question)]
 recall[, answer := gsub("<div class='answer'>|</div>", "", answer)]
+
+# Remove trailing spaces from recalls
+recall[, recall := trimws(recall)]
 
 # Score easy scores ----
 
