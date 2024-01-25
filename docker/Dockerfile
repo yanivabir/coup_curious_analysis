@@ -1,4 +1,6 @@
-FROM rocker/rstudio:latest-daily@sha256:ad4dca6727c6d996a3c75f34d11090c16d1a4e1f2f7f88ae5387cc4c3f897109
+FROM rocker/rstudio:4.3.2
+
+ARG TARGETPLATFORM
 
 # Using clang to compile Stan
 # Using the default g++ causes memory issues
@@ -7,7 +9,7 @@ RUN apt-get update \
 clang
 
 # Set CRAN date
-RUN echo 'options(repos = c(CRAN = "https://packagemanager.rstudio.com/cran/2023-04-21"), download.file.method = "libcurl")' >> $(Rscript -e 'cat(R.home())')/etc/Rprofile.site
+RUN echo 'options(repos = c(CRAN = "https://packagemanager.rstudio.com/cran/2023-01-19"), download.file.method = "libcurl")' >> $(Rscript -e 'cat(R.home())')/etc/Rprofile.site
 
 RUN apt-get update \
 && apt-get install -y --no-install-recommends \
@@ -35,7 +37,7 @@ RUN ["r", "install_r.R"]
 
 # Run script installing cmdstand
 COPY install_cmdstan.R install_cmdstan.R
-RUN ["r", "install_cmdstan.R"]
+# RUN ["r", "install_cmdstan.R"]
 # RUN sudo chown -R rstudio /home/rstudio/.cmdstanr
 
 # Install additional r libraries
