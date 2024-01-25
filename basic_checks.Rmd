@@ -267,6 +267,66 @@ ggplot(wait_rate, aes(x = rating, y = prop, color = choice)) +
        y = "Proprtion",
        color = "Choice")
 ```
+
+## Rating waiting correlation - relative to skip
+```{r rating_waiting_rel, warning=FALSE}
+# Summarize rating task by question
+rate_sum <- rating_clps[, .(confidence = mean(confidence),
+                            affect = mean(affect),
+                            congruence = mean(congruence),
+                            useful= mean(useful)), 
+                     by = c("questionId", "block")]
+
+
+rate_sum[, block := factor(block,
+                          levels = levs,
+                          labels = block_labels)]
+
+## Summarize waiting task by question
+wait_sum <- wait[, .(wait = sum(choice == "wait") / 
+                       sum(choice %in% c("wait", "skip")),
+                     know = sum(choice == "know") /
+                       sum(choice %in% c("know", "skip"))), 
+                 by = c("questionId", "block")]
+
+# Pretty labels of question type
+wait_sum[, block := factor(block,
+                          levels = levs,
+                          labels = block_labels)]
+
+wait_rate <- merge(wait_sum, rate_sum, by = c("questionId", "block"))
+
+# wide to long
+wait_rate <-  melt(wait_rate, measure.vars = c("wait", "know"),
+                   variable.name = "choice", value.name = "prop")
+
+wait_rate <-  melt(wait_rate, 
+                   measure.vars = c("confidence", "affect", "congruence", "useful"),
+                   variable.name = "probe", value.name = "rating")
+
+wait_rate[, probe := factor(probe, 
+                              levels = c("useful", "confidence", 
+                                         "affect", "congruence"),
+                              labels = c("Usefulness", "Confidence", "Affect",
+                                         "Belief congruence"))]
+
+# Pretty labels for choice
+wait_rate[, choice := factor(choice, labels = c("Wait", "Know"))]
+
+
+ggplot(wait_rate, aes(x = rating, y = prop, color = choice)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method="glm", se=F, formula=y~x) +
+  facet_wrap("probe", scales = "free", switch = "x") +
+  theme(legend.position = "top",
+        strip.background = element_blank(),
+        strip.placement = "outside",
+        strip.text = element_text(size = 14)) +
+  labs(x = "",
+       y = "Proprtion relative to skip",
+       color = "Choice")
+```
+
 ## Knowledge test averages
 
 ```{r know_test_grand_avg}
@@ -562,6 +622,7 @@ wait_sum <- wait[choice %in% c("skip", "wait"),
                  .(resp = mean(choice == "wait")), by = c("PID", "block")]
 plot_against_ID(wait_sum, "Prop. waited")
 ```
+
 ## Individual differnces and choosing Know
 
 ```{r know_ID}
