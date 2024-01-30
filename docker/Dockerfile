@@ -9,7 +9,7 @@ RUN apt-get update \
 clang
 
 # Set CRAN date
-RUN echo 'options(repos = c(CRAN = "https://packagemanager.rstudio.com/cran/2023-01-19"), download.file.method = "libcurl")' >> $(Rscript -e 'cat(R.home())')/etc/Rprofile.site
+RUN echo 'options(repos = c(CRAN = "https://packagemanager.rstudio.com/cran/2023-01-26"), download.file.method = "libcurl")' >> $(Rscript -e 'cat(R.home())')/etc/Rprofile.site
 
 RUN apt-get update \
 && apt-get install -y --no-install-recommends \
@@ -37,7 +37,7 @@ RUN ["r", "install_r.R"]
 
 # Run script installing cmdstand
 COPY install_cmdstan.R install_cmdstan.R
-# RUN ["r", "install_cmdstan.R"]
+RUN ["r", "install_cmdstan.R"]
 # RUN sudo chown -R rstudio /home/rstudio/.cmdstanr
 
 # Install additional r libraries
@@ -59,4 +59,4 @@ RUN apt-get update \
 && apt-get install -y --no-install-recommends \
 libssh-dev
 RUN Rscript -e "install.packages('ssh')"
-RUN Rscript -e "tinytex::install_tinytex()"
+

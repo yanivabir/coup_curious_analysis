@@ -1,7 +1,7 @@
 # Install cmdstanr
-options(Ncpus = 6)
+options(Ncpus = 12)
 install.packages("remotes")
-install.packages("posterior")
+remotes::install_github('stan-dev/posterior', 'v1.5.0')
 remotes::install_version("cmdstanr", version="0.7.1", 
                          repos = c("https://mc-stan.org/r-packages/", 
                                    getOption("repos")))
