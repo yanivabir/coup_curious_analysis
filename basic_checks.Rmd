@@ -1,6 +1,8 @@
 ---
 title: "Coup experiment basic analyses"
-output: beamer_presentation
+output:
+  ioslides_presentation: default
+  beamer_presentation: default
 ---
 
 ```{r setup, include = F}
@@ -14,7 +16,6 @@ library(data.table)
 setDTthreads(11)
 library(ggplot2)
 library(stringr)
-library(ggrain)
 library(cowplot)
 theme_set(theme_minimal()  +
             theme_cowplot(14, font_family = "Helvetica", rel_small = 0.8) + 
@@ -325,76 +326,6 @@ ggplot(wait_rate, aes(x = rating, y = prop, color = choice)) +
   labs(x = "",
        y = "Proprtion relative to skip",
        color = "Choice")
-```
-
-## Knowledge test averages
-
-```{r know_test_grand_avg}
-# Summarize knowledge test by participant
-know_sum <- know_test[, .(correct = mean(correct)),
-                       by = .(PID, block)]
-  
-
-know_sum[, block := factor(block,
-                          levels = levs,
-                          labels = block_labels)]
-
-
-# Plot knowledge test
-p_know_mean_p <- ggplot(know_sum, aes(x = block, y = correct, 
-                                    color = block)) +
-  geom_rain(alpha = .3) +
-  scale_color_manual(values=block_colors) +
-  labs(x = "Question type",
-       y = "Proportion correct",
-       title = "Knowledge Test\nby Participant") 
-
-# Add date to date
-know_sum <- merge(know_sum, quality[, .(PID, date)], 
-                  by = "PID", all.x = T)
-
-# Summarize by date
-know_sum_date <- know_sum[, .(correct = mean(correct),
-                              se = se(correct)), by = c("date", "block")]
-
-# Plot knowledge test by date
-p_know_mean_d <- ggplot(know_sum_date, aes(x = date, y = correct, 
-                                    color = block)) +
-  geom_pointrange(aes(ymin = correct - se, ymax = correct + se)) +
-  scale_color_manual(values=block_colors) +
-  theme(legend.position = "top") +
-  labs(x = "Date",
-       y = "Proportion correct",
-       color = "Question type",
-       title = "Knowledge Test by Date") 
-
-
-# Summarize knowledge test by item
-know_sum <- know_test[, .(correct = mean(correct)),
-                       by = .(probe, block)]
-  
-
-know_sum[, block := factor(block,
-                          levels = levs,
-                          labels = block_labels)]
-
-
-# Plot knowledge test
-p_know_mean_q <- ggplot(know_sum, aes(x = block, y = correct, 
-                                    color = block)) +
-  geom_rain(alpha = .3) +
-  scale_color_manual(values=block_colors) +
-  labs(x = "Question type",
-       y = "Proportion correct",
-       title = "Knowledge Test \nby Item")
-
-
-(p_know_mean <- plot_grid(p_know_mean_p, p_know_mean_q))
-```
-## Knowledge test by date
-
-```{r plot_knowledge_by_date}
-p_know_mean_d
 ```
 
 ## Coup relevance subscales
@@ -717,53 +648,6 @@ ggplot(know_sum_l, aes(x = correct, y = value, color = block)) +
 ```{r knowlege_know_corr}
 knitr::kable(dcast(know_sum_l[, .(r = cor(correct, value, use = "complete.obs")), by = c("block", "variable")],
                    variable ~ block))
-```
-
-## Event-probability judgments
-
-```{r prob_judge_grand_avg}
-# Summarize porbability judgement by participant
-prob_sum <- prob_judge[, .(response = mean(response),
-                           se = se(response)),
-                       by = .(PID, block)]
-  
-
-prob_sum[, block := factor(block,
-                          levels = levs,
-                          labels = block_labels)]
-
-
-# Plot rating task
-p_prob_mean_p <- ggplot(prob_sum, aes(x = block, y = response, 
-                                    color = block)) +
-  geom_rain(alpha = .3) +
-  scale_color_manual(values=block_colors) +
-  labs(x = "Question type",
-       y = "Average probability judgment",
-       title = "Average Probability Judgment\nfor Participants") 
-
-# Summarize rating task by item
-prob_sum <- prob_judge[, .(response = mean(response),
-                           se = se(response)),
-                       by = .(itemId, block)]
-  
-
-prob_sum[, block := factor(block,
-                          levels = levs,
-                          labels = block_labels)]
-
-
-# Plot rating task
-p_prob_mean_q <- ggplot(prob_sum, aes(x = block, y = response, 
-                                    color = block)) +
-  geom_rain(alpha = .3) +
-  scale_color_manual(values=block_colors) +
-  labs(x = "Question type",
-       y = "Average probability judgment",
-       title = "Average Probability Judgment\nfor Items")
-
-
-(p_prob_mean <- plot_grid(p_prob_mean_p, p_prob_mean_q))
 ```
 
 ## Event-probability judgments

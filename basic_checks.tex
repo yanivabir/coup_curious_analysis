@@ -1,0 +1,247 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+  ignorenonframetext,
+]{beamer}
+\usepackage{pgfpages}
+\setbeamertemplate{caption}[numbered]
+\setbeamertemplate{caption label separator}{: }
+\setbeamercolor{caption name}{fg=normal text.fg}
+\beamertemplatenavigationsymbolsempty
+% Prevent slide breaks in the middle of a paragraph
+\widowpenalties 1 10000
+\raggedbottom
+\setbeamertemplate{part page}{
+  \centering
+  \begin{beamercolorbox}[sep=16pt,center]{part title}
+    \usebeamerfont{part title}\insertpart\par
+  \end{beamercolorbox}
+}
+\setbeamertemplate{section page}{
+  \centering
+  \begin{beamercolorbox}[sep=12pt,center]{part title}
+    \usebeamerfont{section title}\insertsection\par
+  \end{beamercolorbox}
+}
+\setbeamertemplate{subsection page}{
+  \centering
+  \begin{beamercolorbox}[sep=8pt,center]{part title}
+    \usebeamerfont{subsection title}\insertsubsection\par
+  \end{beamercolorbox}
+}
+\AtBeginPart{
+  \frame{\partpage}
+}
+\AtBeginSection{
+  \ifbibliography
+  \else
+    \frame{\sectionpage}
+  \fi
+}
+\AtBeginSubsection{
+  \frame{\subsectionpage}
+}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\newif\ifbibliography
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+\usepackage{caption}
+% Make caption package work with longtable
+\makeatletter
+\def\fnum@table{\tablename~\thetable}
+\makeatother
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same} % disable monospaced font for URLs
+\hypersetup{
+  pdftitle={Coup experiment basic analyses},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Coup experiment basic analyses}
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\frame{\titlepage}
+
+\begin{frame}{Waiting task averages}
+\protect\hypertarget{waiting-task-averages}{}
+\includegraphics{basic_checks_files/figure-beamer/waiting_grand_avg_proportions-1.pdf}
+\end{frame}
+
+\begin{frame}{Question rating averages}
+\protect\hypertarget{question-rating-averages}{}
+\includegraphics{basic_checks_files/figure-beamer/rating_grand_avg-1.pdf}
+\end{frame}
+
+\begin{frame}{Rating - waiting correlations}
+\protect\hypertarget{rating---waiting-correlations}{}
+\includegraphics{basic_checks_files/figure-beamer/rating_waiting-1.pdf}
+\end{frame}
+
+\begin{frame}{Knowledge test averages}
+\protect\hypertarget{knowledge-test-averages}{}
+\includegraphics{basic_checks_files/figure-beamer/know_test_grand_avg-1.pdf}
+\end{frame}
+
+\begin{frame}{Knowledge test by date}
+\protect\hypertarget{knowledge-test-by-date}{}
+\includegraphics{basic_checks_files/figure-beamer/plot_knowledge_by_date-1.pdf}
+\end{frame}
+
+\begin{frame}{Coup relevance subscales}
+\protect\hypertarget{coup-relevance-subscales}{}
+\includegraphics{basic_checks_files/figure-beamer/coup_relevance_scatter-1.pdf}
+\end{frame}
+
+\begin{frame}{Coup relevance by date}
+\protect\hypertarget{coup-relevance-by-date}{}
+\includegraphics{basic_checks_files/figure-beamer/coup_relevance_scatter_by_date-1.pdf}
+\end{frame}
+
+\begin{frame}{Coup relevance by date}
+\protect\hypertarget{coup-relevance-by-date-1}{}
+\includegraphics{basic_checks_files/figure-beamer/raw_by_date-1.pdf}
+\end{frame}
+
+\begin{frame}{Coup relevance items}
+\protect\hypertarget{coup-relevance-items}{}
+\includegraphics{basic_checks_files/figure-beamer/coup_rel_items-1.pdf}
+\end{frame}
+
+\begin{frame}{Ideology measures}
+\protect\hypertarget{ideology-measures}{}
+\includegraphics{basic_checks_files/figure-beamer/ideology-1.pdf}
+\end{frame}
+
+\begin{frame}{Ideology and coup relevance}
+\protect\hypertarget{ideology-and-coup-relevance}{}
+\includegraphics{basic_checks_files/figure-beamer/ideology_coup_rel-1.pdf}
+\end{frame}
+
+\begin{frame}{Individual differences questionnaires}
+\protect\hypertarget{individual-differences-questionnaires}{}
+\includegraphics{basic_checks_files/figure-beamer/affect_motivation_quests-1.pdf}
+\end{frame}
+
+\begin{frame}{Individual differences over time}
+\protect\hypertarget{individual-differences-over-time}{}
+\includegraphics{basic_checks_files/figure-beamer/ID_measures_by_date-1.pdf}
+\end{frame}
+
+\begin{frame}{Waiting by individual differences}
+\protect\hypertarget{waiting-by-individual-differences}{}
+\includegraphics{basic_checks_files/figure-beamer/wait_skip_affect_motivation_choice-1.pdf}
+\end{frame}
+
+\begin{frame}{Individual differnces and choosing Know}
+\protect\hypertarget{individual-differnces-and-choosing-know}{}
+\includegraphics{basic_checks_files/figure-beamer/know_ID-1.pdf}
+\end{frame}
+
+\begin{frame}{Individual differnces and satisfaaction rating}
+\protect\hypertarget{individual-differnces-and-satisfaaction-rating}{}
+\includegraphics{basic_checks_files/figure-beamer/statis_ID-1.pdf}
+\end{frame}
+
+\begin{frame}{Individual differnces and usefulness rating}
+\protect\hypertarget{individual-differnces-and-usefulness-rating}{}
+\includegraphics{basic_checks_files/figure-beamer/useful_ID-1.pdf}
+\end{frame}
+
+\begin{frame}{Individual differnces and affect rating}
+\protect\hypertarget{individual-differnces-and-affect-rating}{}
+\includegraphics{basic_checks_files/figure-beamer/affect_ID-1.pdf}
+\end{frame}
+
+\begin{frame}{Individual differnces and confidence rating}
+\protect\hypertarget{individual-differnces-and-confidence-rating}{}
+\includegraphics{basic_checks_files/figure-beamer/confidence_ID-1.pdf}
+\end{frame}
+
+\begin{frame}{Individual differnces and congruence rating}
+\protect\hypertarget{individual-differnces-and-congruence-rating}{}
+\includegraphics{basic_checks_files/figure-beamer/congruence_ID-1.pdf}
+\end{frame}
+
+\begin{frame}{Knowledge test correlations}
+\protect\hypertarget{knowledge-test-correlations}{}
+\includegraphics{basic_checks_files/figure-beamer/knowledge_know-1.pdf}
+\end{frame}
+
+\begin{frame}{Knowledge test correlations}
+\protect\hypertarget{knowledge-test-correlations-1}{}
+\begin{longtable}[]{@{}lrr@{}}
+\toprule()
+variable & Coup-related & General \\
+\midrule()
+\endhead
+know\_v\_skip & 0.3178036 & 0.1144524 \\
+know\_prop & 0.2097661 & -0.0119338 \\
+waited & 0.2342408 & 0.1513278 \\
+\bottomrule()
+\end{longtable}
+\end{frame}
+
+\begin{frame}{Event-probability judgments}
+\protect\hypertarget{event-probability-judgments}{}
+\includegraphics{basic_checks_files/figure-beamer/prob_judge_grand_avg-1.pdf}
+\end{frame}
+
+\begin{frame}{Event-probability judgments}
+\protect\hypertarget{event-probability-judgments-1}{}
+\includegraphics{basic_checks_files/figure-beamer/prob_judge_per_item-1.pdf}
+\end{frame}
+
+\end{document}
