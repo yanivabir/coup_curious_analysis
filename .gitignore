@@ -54,6 +54,7 @@ rsconnect/
 *.nb.html
 *.html
 *.pdf
+*.tex
 
 .DS_Store
 Icon
