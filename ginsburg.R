@@ -14,60 +14,91 @@ send_file <- function(session, file, fld){
     file.remove(file)
 }
 
+open_session <- function(user){
+  pwd <- Sys.getenv("ginsburg_pwd")
+  
+  if (pwd == "") {
+    print("No password saved. Input your password")
+    pwd = readline()
+    Sys.setenv(ginsburg_pwd = pwd)
+  }
+  
+  
+  # Open session
+  session <- ssh_connect(paste0(user, "@burg.rcs.columbia.edu"),
+                         passwd = Sys.getenv("ginsburg_pwd"))
+  
+  return(session)
+  
+}
+
 # Create and save r script to run model
 save_r_script <- function(r_library,
-    cmdstan_path,
     data_file,
     formula,
     prior,
     chains,
     iter,
     cores,
-    threads,
     control,
     model_name,
     seed,
     save_output,
     criteria,
-    confirm){
+    confirm,
+    kfold_threads = NULL){
 
     # Make sure we only save model if we want
     model_file <- ifelse(save_output, str_glue("'{model_name}'"), "NULL")
+    
+    # Compute threads
+    threads <- floor(cores / chains)
 
     # Create r script to run model
     script <- c(
         str_glue(".libPaths('{r_library}')"),
+        str_glue('unixtools::set.tempdir(normalizePath("../../tmp"))'),
         "print(tempdir())",
         "library(brms)",
-        str_glue("Sys.setenv(CMDSTAN='{cmdstan_path}')"),
         "library(cmdstanr)",
+        "st <- Sys.time()",
         str_glue("load('./{data_file}')"),
         str_glue("(m <- brm({formula},
             data = data,
             prior = {prior},
             chains = {chains},
             iter = {iter},
-            cores = {cores},
+            cores = {chains},
             backend = 'cmdstanr',
             threads = threading({threads}),
             control = {control},
             file = {model_file},
+            save_pars = save_pars(all = TRUE),
+            silent=F,
             seed = {seed}))")
     )
 
-    # Only save draws if wanted
-    if (save_output){
-        draws_file <- paste0(model_name, "_draws.csv")
-        script <- c(script,
-            str_glue("write.csv(as.data.frame(m), file = '{draws_file}')")
-        )
-    }
-
     # Add criteria if needed
     if (!is.null(criteria)){
+      
+      if (criteria == "kfold") {
+        kfold_threads <- floor(cores / 10)
         script <- c(script,
-            str_glue("add_criterion(m, '{criteria}', cores = {cores}, moment_match = T)"))
+                    "options(future.globals.maxSize=10000*1024^2)",
+                    str_glue("m <- add_criterion(m, criterion = 'kfold', 
+                             threads = threading({cores}))"))
+      }
+      else {
+        script <- c(script,
+                    "options(future.globals.maxSize=5000*1024^2)",
+                    str_glue("add_criterion(m, '{criteria}', cores = {cores}, 
+                     moment_match = T, reloo = T)"))
+      }
     }
+    
+    # Print time to run
+    script <- c(script,
+                "print(Sys.time() - st)")
 
     # Save .R file locally
     script_file_name <- str_glue("launch_{model_name}.R")
@@ -75,7 +106,7 @@ save_r_script <- function(r_library,
 
     if (confirm){
         print("Going to run following script:\n")
-        cat(paste0(script, collapse = "\n"))
+        writeLines(script)
         invisible(readline(prompt="Press [enter] to continue"))
     }
 
@@ -88,16 +119,15 @@ save_sh_script <- function(lab,
     cores,
     wall_time,
     memory,
-    r_file_name,
-    tmpdir) {
+    r_file_name) {
     script <- c(
         "#!/bin/sh",
         str_glue("#SBATCH --account={lab}"),
         str_glue("#SBATCH --job-name={model_name}"),
         str_glue("#SBATCH -c {cores}"),
-        str_glue("#SBATCH --time={wall_time}")
-        # str_glue("#SBATCH --mail-user={email}"),
-        # "#SBATCH --mail-type=ALL"
+        str_glue("#SBATCH --time={wall_time}"),
+        "#SBATCH --output=R-%x.%j.out",
+        "#SBATCH --error=R-%x.%j.err"
     )
 
     # Add memory requirement if one exists
@@ -110,7 +140,6 @@ save_sh_script <- function(lab,
 
     script <- c(
         script, 
-        str_glue("export TMPDIR={tmpdir}"),
         "module load R",
         str_glue("Rscript {r_file_name}")
     )
@@ -140,38 +169,44 @@ launch_model <- function(
     lab = "dslab",
     user = "ya2402",
     r_library = "/burg/dslab/users/ya2402/R_lib",
-    cmdstan_path = "/burg/dslab/users/ya2402/R_lib/.cmdstan/cmdstan-2.32.2",
     saved_models_fld = "./saved_models/",
     criteria = NULL,
     confirm = TRUE,
-    refit = FALSE
+    force = F
 ) {
     # Test no spaces in project folder name
     assert("No spaces allowed in project name", !grepl(" ", project))
-  
-    # Replace all double with single quotes
-    formula <- gsub('"', "'", formula)
-    prior <- gsub('"', "'", prior)
-    
-    # Keep only needed columns in data to reduce traffic
-    data_cols <- all.vars(eval(parse(text = formula))$formula)
-    data <- data[, data_cols, with = F]
 
     # Paths
     ufld <- paste0("/burg/", lab, "/users/", user) # User folder on Ginsburg
     fld <- paste0(ufld, "/autorun_models/", project) # Project folder to work in on Gisnburg
-    tmpdir <- file.path(ufld, "tmp") # Local tmp folder to avoid small size
     data_file <- paste0(model_name, "_data.rda")
     local_model_file <- file.path(saved_models_fld, paste0(model_name, ".rds"))
 
     # Don't run if local saved model exists, mimicking brm behaviour
-    if(!refit & file.exists(local_model_file)){
+    if(file.exists(local_model_file) & !force){
         print(paste0("Found local saved model ", model_name, ", not runninng."))
         return()
     }
     
+    # Prepare R script
+    r_script <- save_r_script(r_library,
+                              data_file,
+                              formula,
+                              prior,
+                              chains,
+                              iter,
+                              cores,
+                              control,
+                              model_name,
+                              seed,
+                              save_output,
+                              criteria,
+                              confirm)
+    
+
     # Open session
-    session <- ssh_connect(paste0(user, "@burg.rcs.columbia.edu"))
+    session <- open_session(user)
 
     # Test that r_library folder exists
     tryCatch(
@@ -186,32 +221,13 @@ launch_model <- function(
 
     # Create a projects folder if needed
     ssh_exec_wait(session, paste("mkdir -p", fld))
-    
-    # Create a tmp folder if needed
-    ssh_exec_wait(session, paste("mkdir -p", tmpdir))
-    
-    # Remove saved file on Ginsburg if refit is True
-    if (refit){
-      ssh_exec_wait(session, paste("rm -f", file.path(fld, paste0(model_name, ".rds"))))
-    }
 
     # Send rscript to server
-    r_script <- save_r_script(r_library,
-        cmdstan_path,
-        data_file,
-        formula,
-        prior,
-        chains,
-        iter,
-        cores,
-        floor(cores / chains),
-        control,
-        model_name,
-        seed,
-        save_output,
-        criteria,
-        confirm)
     send_file(session, r_script, fld)
+    
+    # Send data to server
+    save(data, file = data_file)
+    send_file(session, data_file, fld)
 
     # Send sh to server
     sh_script <- save_sh_script(
@@ -220,14 +236,9 @@ launch_model <- function(
         cores,
         wall_time,
         memory,
-        r_script,
-        tmpdir
+        r_script
     )
     send_file(session, sh_script, fld)
-    
-    # Send data to server
-    save(data, file = data_file)
-    send_file(session, data_file, fld)
 
     # Launch task on server
     out <- ssh_exec_internal(session, command = c(
@@ -258,7 +269,7 @@ check_status <- function(
     fld <- paste0(ufld, "/autorun_models/", project) # Project folder to work in on Gisnburg
 
     # Open session
-    session <- ssh_connect(paste0(user, "@burg.rcs.columbia.edu"))
+    session <- open_session(user)
 
     # Print queue
     print("Running jobs:")
@@ -281,8 +292,11 @@ fetch_results <- function(
     project = "test",
     lab = "dslab",
     user = "ya2402",
-    saved_models_fld = "../saved_models/"
+    saved_models_fld = "./saved_models/",
+    force = F
 ) {
+    library(testit)
+    library(ssh)
 
     ## Move to seperate function
     # Test no spaces in project folder name
@@ -294,16 +308,11 @@ fetch_results <- function(
     model_file <- paste0(model_name, ".rds")  # Saved model file on Ginsburg
     local_model_file <- file.path(saved_models_fld, model_file)
 
-    if (!file.exists(local_model_file)){
+    if (!file.exists(local_model_file) | force){
         # Open session
-        session <- ssh_connect(paste0(user, "@burg.rcs.columbia.edu"))
+        session <- open_session(user)
 
         # Download files
-        scp_download(session, 
-            file.path(fld, paste0(model_name, "_draws.csv")), 
-            to = saved_models_fld,
-            verbose = T)
-
         scp_download(session, 
             file.path(fld, model_file), 
             to = saved_models_fld,
@@ -339,7 +348,7 @@ gins_add_criterion <- function(
     local_model_file <- file.path(saved_models_fld, paste0(model_name, ".rds"))
 
     # Open session
-    session <- ssh_connect(paste0(user, "@burg.rcs.columbia.edu"))
+    session <- open_session(user)
 
     # Test that r_library folder exists
     tryCatch(
