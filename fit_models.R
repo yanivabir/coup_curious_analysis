@@ -37,13 +37,17 @@ jobid <- launch_model(data = wait,
               prior(lkj(2), class = "cor")',
                       model_name = "chm0",
                       save_output = T,
-                      iter = 2000,
+                      iter = 3000,
+                      warmup = 2000,
                       chains = 3,
                       seed = 1,
                       cores = 30,
                       wall_time = "0-05:00",
                       project = "coup")
-
+(chm0 <- fetch_results(
+  model_name = "chm0",
+  project = "coup",
+))
 
 # Simple rating models ----
 # Contrasts for block
@@ -158,10 +162,13 @@ list[rating_preds, p1, p2] <- extract_coef_per_question(rm0, rating_clps, file =
 rating_preds_w <- dcast(rating_preds, questionId + block ~ rating,
                         value.var = c("Estimate", "Est.Error"))
 wait_ff <- merge(wait, rating_preds_w, by = c("questionId", "block"))
-wait_ff[, block := factor(block, levels = c("general", "coup"))]
-contrasts(wait_ff$block) <- c(-0.5, 0.5)
 
-jobid <- launch_model(data = wait,
+# Standardize variables
+wait_ff[, confidence := scale(Estimate_confidence)]
+wait_ff[, affect := scale(Estimate_affect)]
+wait_ff[, useful := scale(Estimate_useful)]
+
+jobid <- launch_model(data = wait_ff,
                       formula = 'bf(choice ~ 1 + wait_s + block * confidence + 
                         block * affect + block * useful +
                         block * I(confidence^2) +
@@ -180,106 +187,23 @@ jobid <- launch_model(data = wait,
               prior(normal(0,1), class = "sd", dpar = "muknow") +
               prior(normal(0,1), class = "sd", dpar = "muwait") +
               prior(lkj(2), class = "cor")',
-                      model_name = "chm0",
+                      model_name = "chm1",
                       save_output = T,
-                      iter = 2000,
+                      iter = 3000,
+                      warmup = 2000,
                       chains = 3,
                       seed = 1,
                       cores = 30,
-                      wall_time = "0-010:00",
+                      wall_time = "0-10:00",
                       project = "coup")
 
 
-(rw_me0 <- fetch_results(
-  model_name = "rw_me0",
+(chm1 <- fetch_results(
+  model_name = "chm1",
   project = "coup",
 ))
 
-conditional_effects(rw_me0, categorical = T)
-
-# Add polynomial on confidence
-jobid <- launch_model(data = wait_ff,
-                      formula = 'bf(choice ~ 1 + wait_duration + block + 
-                      me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
-                      me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
-                      me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId) +
-                      I(me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId)^2) +
-                      (1 + wait_duration + block + 
-                      me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
-                      me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
-                      me(Estimate_confidence, sdx = Est.Error_confidence, 
-                        gr = questionId) +
-                      I(me(Estimate_confidence, sdx = Est.Error_confidence, 
-                        gr = questionId)^2)| PID) + 
-              (1 + wait_duration| questionId)) + categorical(refcat = "skip") +
-                      set_mecor(F)',
-                      prior = 'prior(lkj(2), class = "cor") +
-                      prior(normal(0,1), class = "meanme") +
-                      prior(normal(0,1), class = "sdme") +
-                      prior(normal(0,1), class = "b", dpar = "muknow") +
-                      prior(normal(0,1), class = "b", dpar = "muwait") +
-                      prior(normal(0,1), class = "Intercept", dpar = "muknow") +
-                      prior(normal(0,1), class = "Intercept", dpar = "muwait") +
-                      prior(normal(0,1), class = "sd", dpar = "muknow") +
-                      prior(normal(0,1), class = "sd", dpar = "muwait")',
-                      model_name = "rw_me1",
-                      save_output = T,
-                      iter = 3500,
-                      chains = 3,
-                      seed = 1,
-                      cores = 30,
-                      wall_time = "0-17:00",
-                      project = "coup",
-                      criteria = "loo")
-
-
-(rw_me1 <- fetch_results(
-  model_name = "rw_me1",
-  project = "coup",
-))
-
-# Add block interactions
-rw_me2_jobid <- launch_model(data = wait_ff,
-                      formula = 'bf(choice ~ 1 + wait_duration +
-                      block * me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
-                      block * me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
-                      block * me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId) +
-                      block * I(me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId)^2) +
-                      (1 + wait_duration +
-                      block * me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
-                      block * me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
-                      block * me(Estimate_confidence, sdx = Est.Error_confidence, 
-                        gr = questionId) +
-                      block * I(me(Estimate_confidence, sdx = Est.Error_confidence, 
-                        gr = questionId)^2)| PID) + 
-              (1 + wait_duration| questionId)) + categorical(refcat = "skip") +
-                      set_mecor(F)',
-                      prior = 'prior(lkj(2), class = "cor") +
-                      prior(normal(0,1), class = "meanme") +
-                      prior(normal(0,1), class = "sdme") +
-                      prior(normal(0,1), class = "b", dpar = "muknow") +
-                      prior(normal(0,1), class = "b", dpar = "muwait") +
-                      prior(normal(0,1), class = "Intercept", dpar = "muknow") +
-                      prior(normal(0,1), class = "Intercept", dpar = "muwait") +
-                      prior(normal(0,1), class = "sd", dpar = "muknow") +
-                      prior(normal(0,1), class = "sd", dpar = "muwait")',
-                      model_name = "rw_me2",
-                      save_output = T,
-                      iter = 3500,
-                      chains = 3,
-                      seed = 1,
-                      cores = 30,
-                      wall_time = "0-17:00",
-                      project = "coup",
-                      criteria = "loo")
-
-
-(rw_me2 <- fetch_results(
-  model_name = "rw_me2",
-  project = "coup",
-))
-
-loo_compare(rw_me2, rw_me1)
+conditional_effects(chm1, categorical = T)
 
 # Add naive ID measures ----
 source("compute_ID.R")
