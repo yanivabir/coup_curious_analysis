@@ -39,6 +39,7 @@ save_r_script <- function(r_library,
     prior,
     chains,
     iter,
+    warmup,
     cores,
     control,
     model_name,
@@ -68,6 +69,7 @@ save_r_script <- function(r_library,
             prior = {prior},
             chains = {chains},
             iter = {iter},
+            warmup = {warmup},
             cores = {chains},
             backend = 'cmdstanr',
             threads = threading({threads}),
@@ -159,6 +161,7 @@ launch_model <- function(
     model_name = "m1_0",
     save_output = FALSE,
     iter = 2000,
+    warmup = floor(iter/2),
     chains = 3,
     seed = 1,
     cores = 3,
@@ -169,7 +172,7 @@ launch_model <- function(
     lab = "dslab",
     user = "ya2402",
     r_library = "/burg/dslab/users/ya2402/R_lib",
-    saved_models_fld = "./saved_models/",
+    saved_models_fld = "../saved_models/",
     criteria = NULL,
     confirm = TRUE,
     force = F
@@ -196,6 +199,7 @@ launch_model <- function(
                               prior,
                               chains,
                               iter,
+                              warmup,
                               cores,
                               control,
                               model_name,
@@ -292,7 +296,7 @@ fetch_results <- function(
     project = "test",
     lab = "dslab",
     user = "ya2402",
-    saved_models_fld = "./saved_models/",
+    saved_models_fld = "../saved_models/",
     force = F
 ) {
     library(testit)
@@ -336,7 +340,7 @@ gins_add_criterion <- function(
     lab = "dslab",
     user = "ya2402",
     r_library = "~",
-    saved_models_fld = "./saved_models/"
+    saved_models_fld = "../saved_models/"
 ) {
     # Test no spaces in project folder name
     assert("No spaces allowed in project name", !grepl(" ", project))
