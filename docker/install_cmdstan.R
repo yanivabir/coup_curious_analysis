@@ -8,7 +8,7 @@ remotes::install_version("cmdstanr", version="0.7.1",
 library(cmdstanr)
 
 dir.create(file.path("/home/rstudio/", ".cmdstanr"), recursive = TRUE)
-install_cmdstan(version = "2.34.0", 
+install_cmdstan(version = "2.30.1", 
     cores = 11, 
     dir = file.path("/home/rstudio/", ".cmdstanr"),
     cpp_options = list("CXX" = "clang++"))

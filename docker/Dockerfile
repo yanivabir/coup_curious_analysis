@@ -35,11 +35,6 @@ libsasl2-dev
 COPY install_r.R install_r.R
 RUN ["r", "install_r.R"]
 
-# Run script installing cmdstand
-COPY install_cmdstan.R install_cmdstan.R
-RUN ["r", "install_cmdstan.R"]
-# RUN sudo chown -R rstudio /home/rstudio/.cmdstanr
-
 # Install additional r libraries
 RUN Rscript -e "install.packages('gsubfn')"
 
@@ -59,4 +54,10 @@ RUN apt-get update \
 && apt-get install -y --no-install-recommends \
 libssh-dev
 RUN Rscript -e "install.packages('ssh')"
+
+# Run script installing cmdstand
+COPY install_cmdstan.R install_cmdstan.R
+RUN ["r", "install_cmdstan.R"]
+# RUN sudo chown -R rstudio /home/rstudio/.cmdstanr
+
 

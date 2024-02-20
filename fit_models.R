@@ -18,29 +18,42 @@ list[wait, rating_clps, know_test,
 
 
 # No rating choice model ----
+
+# Standardize wait duration
+wait[, wait_s := scale(wait_duration)]
+
+# Contrasts for block
 contrasts(wait$block) <- c(-0.5, 0.5)
-(chm0 <- brm(data = wait,
-            choice ~ 1 + wait_duration + block + (1 + wait_duration + block | PID) + 
-              (1 + wait_duration| questionId),
-            family = categorical(refcat = "skip"),
-            prior = prior(normal(0,1), class = "b", dpar = "muknow") +
+
+jobid <- launch_model(data = wait,
+                      formula = 'bf(choice ~ 1 + wait_s + block + (1 + wait_s + block | PID) + 
+              (1 + wait_s| questionId)) + categorical(refcat = "skip")',
+                      prior = 'prior(normal(0,1), class = "b", dpar = "muknow") +
               prior(normal(0,1), class = "b", dpar = "muwait") +
               prior(normal(0,1), class = "Intercept", dpar = "muknow") +
               prior(normal(0,1), class = "Intercept", dpar = "muwait") +
               prior(normal(0,1), class = "sd", dpar = "muknow") +
               prior(normal(0,1), class = "sd", dpar = "muwait") +
-              prior(lkj(2), class = "cor"),
-            backend = 'cmdstanr',
-            chains = 4,
-            cores = 4,
-            threads = threading(2),
-            file = file.path(savedModelsDir, "chm0"),
-            seed = 1,
-            ))
+              prior(lkj(2), class = "cor")',
+                      model_name = "chm0",
+                      save_output = T,
+                      iter = 2000,
+                      chains = 3,
+                      seed = 1,
+                      cores = 30,
+                      wall_time = "0-05:00",
+                      project = "coup")
+
 
 # Simple rating models ----
+# Contrasts for block
+rating_clps[, block := factor(block)]
+contrasts(rating_clps$block) <- c(-0.5, 0.5)
+
+
 jobid <- launch_model(data = rating_clps,
-           formula = 'bf(mvbind(confidence, affect, useful) ~ 1 + block + (1 + block | p | PID) +
+           formula = 'bf(mvbind(confidence, affect, useful) ~ 1 + block + 
+             (1 + block | p | PID) +
              (1 | q | questionId)) + cumulative() + set_rescor(F)',
            prior = 'prior(normal(0,1), class = "b", resp = "affect") +
              prior(normal(0,1), class = "b", resp = "confidence") +
@@ -68,31 +81,6 @@ jobid <- launch_model(data = rating_clps,
   project = "coup",
 ))
 
-# No block effect - this was better in previous experiments.
-jobid <- launch_model(data = rating_clps,
-                      formula = 'bf(mvbind(confidence, affect, useful) ~ 1 + (1 | p | PID) +
-             (1 | q | questionId)) + cumulative() + set_rescor(F)',
-                      prior = 'prior(normal(0,1), class = "Intercept", resp = "affect") +
-             prior(normal(0,1), class = "Intercept", resp = "confidence") +
-             prior(normal(0,1), class = "Intercept", resp = "useful") +
-             prior(normal(0,1), class = "sd", resp = "affect") +
-             prior(normal(0,1), class = "sd", resp = "confidence") +
-             prior(normal(0,1), class = "sd", resp = "useful") + 
-             prior(lkj(2), class = "cor")',
-                      model_name = "rm00",
-                      save_output = T,
-                      iter = 2000,
-                      chains = 3,
-                      seed = 1,
-                      cores = 30,
-                      wall_time = "0-05:00",
-                      project = "coup",
-                      criteria = "loo")
-
-(rm00 <- fetch_results(
-  model_name = "rm00",
-  project = "coup",
-))
 
 # Extract coefficient per questionId
 extract_coef_per_question <- function(m,
@@ -165,10 +153,6 @@ extract_coef_per_question <- function(m,
 }
 
 list[rating_preds, p1, p2] <- extract_coef_per_question(rm0, rating_clps, file = "rm0_question_preds")
-extract_coef_per_question(rm00, rating_clps, file = "rm00_question_preds")
-
-# Compare models
-loo_compare(rm0, rm00)
 
 # Fit rating waiting model ----
 rating_preds_w <- dcast(rating_preds, questionId + block ~ rating,
@@ -177,37 +161,33 @@ wait_ff <- merge(wait, rating_preds_w, by = c("questionId", "block"))
 wait_ff[, block := factor(block, levels = c("general", "coup"))]
 contrasts(wait_ff$block) <- c(-0.5, 0.5)
 
-jobid <- launch_model(data = wait_ff,
-                      formula = 'bf(choice ~ 1 + wait_duration + block + 
-                      me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
-                      me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
-                      me(Estimate_confidence, sdx = Est.Error_confidence, gr = questionId) +
-                      (1 + wait_duration + block + 
-                      me(Estimate_useful, sdx = Est.Error_useful, gr = questionId) +
-                      me(Estimate_affect, sdx = Est.Error_affect, gr = questionId) +
-                      me(Estimate_confidence, 
-                      sdx = Est.Error_confidence, gr = questionId) | PID) + 
-              (1 + wait_duration| questionId)) + categorical(refcat = "skip") +
-                      set_mecor(F)',
-                      prior = 'prior(lkj(2), class = "cor") +
-                      prior(normal(0,1), class = "meanme") +
-                      prior(normal(0,1), class = "sdme") +
-                      prior(normal(0,1), class = "b", dpar = "muknow") +
-                      prior(normal(0,1), class = "b", dpar = "muwait") +
-                      prior(normal(0,1), class = "Intercept", dpar = "muknow") +
-                      prior(normal(0,1), class = "Intercept", dpar = "muwait") +
-                      prior(normal(0,1), class = "sd", dpar = "muknow") +
-                      prior(normal(0,1), class = "sd", dpar = "muwait")',
-                      model_name = "rw_me0",
+jobid <- launch_model(data = wait,
+                      formula = 'bf(choice ~ 1 + wait_s + block * confidence + 
+                        block * affect + block * useful +
+                        block * I(confidence^2) +
+                        block * I(affect^2) +
+                        block * I(useful^2) +
+                      (1 + wait_s + block * confidence + 
+                        block * affect + block * useful +
+                        block * I(confidence^2) +
+                        block * I(affect^2) +
+                        block * I(useful^2) | PID) + 
+              (1 + wait_s | questionId)) + categorical(refcat = "skip")',
+                      prior = 'prior(normal(0,1), class = "b", dpar = "muknow") +
+              prior(normal(0,1), class = "b", dpar = "muwait") +
+              prior(normal(0,1), class = "Intercept", dpar = "muknow") +
+              prior(normal(0,1), class = "Intercept", dpar = "muwait") +
+              prior(normal(0,1), class = "sd", dpar = "muknow") +
+              prior(normal(0,1), class = "sd", dpar = "muwait") +
+              prior(lkj(2), class = "cor")',
+                      model_name = "chm0",
                       save_output = T,
-                      iter = 3500,
+                      iter = 2000,
                       chains = 3,
                       seed = 1,
                       cores = 30,
-                      wall_time = "0-17:00",
-                      project = "coup",
-                      criteria = "loo",
-                      refit = T)
+                      wall_time = "0-010:00",
+                      project = "coup")
 
 
 (rw_me0 <- fetch_results(
