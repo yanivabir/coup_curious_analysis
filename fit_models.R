@@ -189,12 +189,12 @@ jobid <- launch_model(data = wait_ff,
               prior(lkj(2), class = "cor")',
                       model_name = "chm1",
                       save_output = T,
-                      iter = 3000,
-                      warmup = 2000,
-                      chains = 3,
+                      iter = 3500,
+                      warmup = 2500,
+                      chains = 4,
                       seed = 1,
-                      cores = 30,
-                      wall_time = "0-10:00",
+                      cores = 32,
+                      wall_time = "0-25:00",
                       project = "coup")
 
 
