@@ -68,7 +68,7 @@ load_exclude <- function(sampleName){
   rating <- fread(file.path(preprocDatDir, "rating_data.csv"))
   know_test <- fread(file.path(preprocDatDir, "knowledge_test_data.csv"))
   prob_judge <- fread(file.path(preprocDatDir, "prob_judge_data.csv"))
-  quest <- fread(file.path(preprocDatDir, "quest_data.csv"))
+  load(file.path(preprocDatDir, "quest_data.rda"))
   quality <- fread(file.path(preprocDatDir, "quality_data.csv"), drop = c(1))
   
   # Exclude participants

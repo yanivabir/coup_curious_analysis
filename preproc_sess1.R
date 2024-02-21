@@ -78,9 +78,6 @@ write.csv(kickouts, file = file.path(preprocDatDir, "kickouts.csv"))
 data <- data[!(PID %in% kickouts$PID)]
 int_data <- int_data[!(PID %in% kickouts$PID)]
 
-# Filter midgam data
-midgam <- midgam[userId %in% unique(data$PID)]
-
 # Use midgam data to fix dates ----
 # Parse midgam dates
 midgam[, date := tstrsplit(startTime, " ")[1]]
@@ -402,8 +399,142 @@ quest[, coup_rel_20 := 4 - coup_rel_20] # No reform no Jewish state
 quest[, coup_rel_21 := 4 - coup_rel_21] # I support reform
 quest[, coup_rel_23 := 4 - coup_rel_23] # I support reform relative to two weeks ago
 
+# Add midgam data ----
+midgam[, firstSession := min(startTime), by = userId]
+midgam <- midgam[startTime == firstSession]
+
+midgam[, midgam_age := 2023 - byear]
+midgam[, midgam_gender := factor(fifelse(sex == 2, "female", "male"))]
+
+# Code family status
+fstat_legend <- c("single", "married","separated", "widow/er")
+midgam[, family := factor(fstat_legend[fstat]), by = "userId"]
+
+# Recode missing value
+midgam[, n_kids := fifelse(kids == 99, NA_integer_, kids)]
+
+# Recode region
+region_legend <- c("JLM", "north", "haifa", "center", "TLV", "south",
+                   "OT", "abroad")
+midgam[, region := factor(region_legend[nafa]), by = "userId"]
+
+# Recode education
+midgam[, midgam_edu := factor(edu,
+                             levels = 1:13,
+                             labels = c("8 or less",
+                                        "9, 10",
+                                        "11, 12",
+                                        "highschool student",
+                                        "highschool graduate",
+                                        "post highschool non academic student",
+                                        "post highschool non academic graduate",
+                                        "BA student",
+                                        "BA graduate",
+                                        "MA student",
+                                        "MA graduate",
+                                        "PhD student",
+                                        "PhD graduate"),
+                             ordered = T)]
+
+# Recode religion
+religion_legend <- c("jewish", "christian", "muslim", "druze", "other", "no religion")
+midgam[, religion := factor(religion_legend[rel]), by = "userId"]
+
+# Recode religiosity
+religiosity_legend <- c("secular", "traditional", "religious", "haredi")
+midgam[, religiosity := factor(relid, 
+                               levels = 1:4,
+                               labels = religiosity_legend,
+                               ordered = T)]
+
+# Recode income
+midgam[, income := factor(ses,
+                          levels = 1:6,
+                          labels = c("no income",
+                                     "much lower than average",
+                                     "lower than average",
+                                     "average",
+                                     "higher than average",
+                                     "much higher than average"),
+                          ordered = T)]
+
+# Recode birth region
+asia <- c('AF','BD','BN','BT','CN','HK','ID','IN','JP','KH','KP','KR','LA',
+              'LK','MM','MN','MO','MV','MY','NP','PH','PK','SG','TH','TL','TW',
+              'VN')
+cent_ame <- c('AG','AI','AN','AW','BB','BM','BS','CU','DM','DO','GD','GP','HT',
+              'JM','KN','KY','LC','MQ','MS','PR','TT','VC','BZ','CR','GT','HN',
+              'MX','NI','PA','SV')
+east_eu <- c('AL','BA','BG','CS','CY','CZ','GR','HR','HU','MK','PL','RO','SI',
+             'SK')
+
+magreb <- c('DZ','EG','LY','MA','TN')
+
+middle_east <- c('AE','BH','IQ','IR','JO','KW','LB','OM','QA','SA','SY','TR','YE')
+
+north_ame <- c('CA','US')
+
+oceania <- c('AS','AU','CK','FJ','FM','GU','KI','MH','MP','NC','NR','NU','NZ',
+             'PF','PG','PN','PW','SB','TO','TV','VG','VI','VU','WS')
+
+south_ame <- c('AR','BO','BR','CL','CO','EC','FK','GF','GY','PE','PY','SR','UY',
+               'VE','PG')
+
+ussr <- c('AM','AZ','BY','EE','GE','KG','KZ','LT','LV','MD','RU','TJ','TM','UA',
+          'UZ')
+
+west_eu <- c('AD','AT','BE','CH','DE','DK','ES','FI','FO','FR','GB','GI','GL',
+             'IE','IM','IS','IT','JE','LI','LU','MC','MT','NL','NO','PT','SE',
+             'SM')
+
+africa <- c('AO','BF','BI','BJ','BW','CD','CF','CG','CI','CM','CV','DJ','EH',
+            'ER','ET','GA','GH','GM','GN','GQ','GW', 'KE','KM','LR','LS','MG',
+            'ML','MR','MU','MW','MZ','NA','NE','NG','RE','RW','SC','SD','SL',
+            'SN','SO','ST','SZ','TD','TG','TZ','UG','YT','ZA','ZM','ZW')
+
+midgam[cbor == "IL", birth_region := "Israel"]
+midgam[cbor %in% asia, birth_region := "Asia"]
+midgam[cbor %in% cent_ame, birth_region := "Central America"]
+midgam[cbor %in% east_eu, birth_region := "Eastern Europe"]
+midgam[cbor %in% magreb, birth_region := "Magreb"]
+midgam[cbor %in% middle_east, birth_region := "Middle East"]
+midgam[cbor %in% north_ame, birth_region := "North America"]
+midgam[cbor %in% oceania, birth_region := "Oceania"]
+midgam[cbor %in% south_ame, birth_region := "South America"]
+midgam[cbor %in% ussr, birth_region := "Former USSR"]
+midgam[cbor %in% west_eu, birth_region := "Western Europe"]
+midgam[cbor %in% africa, birth_region := "Africa"]
+
+midgam[, birth_region := factor(birth_region)]
+
+# Recode vote
+vote2021_legend <- c("likud", "yesh atid", "shas", "kachol lavan", "yamina",
+                     "haavoda", "yahadut hatora", "yisrael beiteynu", 
+                     "meshutefet", "zionut datit", "tikva hadasha",
+                     "meretz", "raam", "other", "didn't vote", NA_character_)
+
+midgam[, party2021 := vote2021_legend[vote2021], by = 'userId']
+midgam[, party2021 := factor(party2021)]
+
+vote2022_legend <- c("likud", "yesh atid", "zionut datit", "machane mamlachti", 
+                     "shas", "yahadut hatora", "yisrael beiteynu", 
+                     "raam", "hadash taal", "haavoda",
+                     "meretz", "balad", "habayit hayehudi", "other",
+                     "didn't vote", NA_character_)
+
+midgam[, party2022 := vote2022_legend[vote2022], by = 'userId']
+midgam[, party2022 := factor(party2022)]
+
+# Merge into quest
+midgam[, PID := as.character(userId)]
+quest[, sPID := trimws(PID)]
+quest <- merge(quest, midgam[, .(PID, midgam_age, midgam_gender, family,
+                                n_kids, region, midgam_edu, religion, religiosity,
+                                income, birth_region, party2021, party2022)],
+               by.x = "sPID", by.y = "PID", all.x = T)
+
 # Save questionnaire to file
-write.csv(quest, file = file.path(preprocDatDir, "quest_data.csv"))
+save(quest, file = file.path(preprocDatDir, "quest_data.rda"))
 
 # Determine who to invite to second session
 quality[, invite := (n_waited > 0) & (important_interactions <= 5) &

@@ -1,0 +1,140 @@
+---
+title: "demographics"
+output: ioslides_presentation
+date: "2024-02-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+# Load libraries
+library(data.table)
+setDTthreads(11)
+library(ggplot2)
+library(stringr)
+library(ggExtra)
+library(cowplot)
+# install.packages("ggalluvial")
+# library(ggalluvial)
+theme_set(theme_minimal()  +
+            theme_cowplot(14, font_family = "Helvetica", rel_small = 0.8) + 
+            theme(legend.position = "none",
+                  strip.text = element_text(size = 9),
+                  plot.margin = margin(1.5,2,1.5,2)))
+
+
+sampleName <- "v1.01"
+
+source("load_data_and_exclude.R")
+list[wait, rating_clps, know_test, 
+     prob_judge, quest, quality] = load_exclude(sampleName)
+```
+
+## Age
+
+```{r age}
+
+p_age_corr <- ggplot(quest[age < 90], aes(x = age, y = midgam_age)) + 
+  geom_point() +
+  labs(x = "Age as we recorded it",
+       y = "Age recorded by Midgam")
+
+p_age_corr <- ggMarginal(p_age_corr, type = "histogram", margins = "both", bins = 50)
+
+p_age_corr
+
+```
+
+## Gender
+Comparing gender report in the experiment (three categories) to Midgam's report.
+```{r gender}
+quest[, gender := factor(gender,
+                         levels = c("זכר", "נקבה", "אחר"),
+                         labels = c("male", "female", "other"))]
+gender <- table(quest$gender, quest$midgam_gender)
+knitr::kable(gender)
+```
+
+## Family status
+
+```{r family}
+p_fam <- ggplot(quest, aes(x = family)) + geom_bar() +
+  labs(x = "Family status",
+       y = "#") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p_fam_gender <- ggplot(quest, aes(x = family, fill = gender)) + geom_bar() +
+  labs(x = "Family status",
+       fill = "Gender",
+       y = "#") + theme(legend.position = "top",
+                        axis.text.x = element_text(angle = 45, hjust = 1))
+
+plot_grid(p_fam, p_fam_gender, nrow = 1)
+```
+
+## Geographic region
+```{r}
+ggplot(quest, aes(x = region)) + geom_bar() +
+  labs(x = "Region",
+       y = "#")
+
+```
+
+## Religiosity
+
+```{r}
+p_rel <- ggplot(quest, aes(x = religiosity)) + geom_bar() +
+  labs(x = "Religiosity",
+       y = "#") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p_rel_gender <- ggplot(quest, aes(x = religiosity, fill = gender)) + geom_bar() +
+  labs(x = "Religiosity",
+       fill = "Gender",
+       y = "#") + theme(legend.position = "top",
+                        axis.text.x = element_text(angle = 45, hjust = 1))
+
+p_rel_region <- ggplot(quest, aes(x = region, fill = religiosity)) + geom_bar() +
+  labs(x = "Region",
+       fill = "Religiosity",
+       y = "#") + theme(legend.position = "top",
+                        axis.text.x = element_text(angle = 45, hjust = 1))
+
+plot_grid(p_rel, p_rel_gender, p_rel_region,
+          nrow = 2)
+
+```
+
+## Income
+
+```{r income}
+p_inc <- ggplot(quest, aes(x = income)) + geom_bar() +
+  labs(x = "Income",
+       y = "#") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p_inc_rel <- ggplot(quest, aes(x = income, fill = religiosity)) + geom_bar() +
+  labs(x = "Income",
+       fill = "Religiosity",
+       y = "#") + theme(legend.position = "top",
+                        axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = guide_legend(nrow = 2))
+
+plot_grid(p_inc, p_inc_rel,
+          nrow = 1)
+
+```
+
+## Region of birth
+```{r birth_region}
+ggplot(quest, aes(x = birth_region)) + geom_bar() +
+  scale_y_log10() +
+  coord_flip() +
+  labs(y = "# (log scale)",
+       x = "")
+```
+
+```{r vote}
+
+```
+
