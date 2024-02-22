@@ -203,7 +203,6 @@ jobid <- launch_model(data = wait_ff,
   project = "coup",
 ))
 
-conditional_effects(chm1, categorical = T)
 
 # Add naive ID measures ----
 source("compute_ID.R")
