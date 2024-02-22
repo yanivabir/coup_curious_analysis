@@ -203,6 +203,37 @@ jobid <- launch_model(data = wait_ff,
   project = "coup",
 ))
 
+# Compare models for the necessity of quadratic terms ----
+jobid <- launch_model(data = wait_ff,
+                      formula = 'bf(choice ~ 1 + wait_s + block * confidence + 
+                        block * affect + block * useful +
+                      (1 + wait_s + block * confidence + 
+                        block * affect + block * useful | PID) + 
+              (1 + wait_s | questionId)) + categorical(refcat = "skip")',
+                      prior = 'prior(normal(0,1), class = "b", dpar = "muknow") +
+              prior(normal(0,1), class = "b", dpar = "muwait") +
+              prior(normal(0,1), class = "Intercept", dpar = "muknow") +
+              prior(normal(0,1), class = "Intercept", dpar = "muwait") +
+              prior(normal(0,1), class = "sd", dpar = "muknow") +
+              prior(normal(0,1), class = "sd", dpar = "muwait") +
+              prior(lkj(2), class = "cor")',
+                      model_name = "chm1000",
+                      save_output = T,
+                      iter = 3500,
+                      warmup = 2500,
+                      chains = 4,
+                      seed = 1,
+                      cores = 32,
+                      criteria = "loo",
+                      wall_time = "0-45:00",
+                      project = "coup")
+
+
+(chm1000 <- fetch_results(
+  model_name = "chm1000",
+  project = "coup",
+))
+
 
 # Add naive ID measures ----
 source("compute_ID.R")
