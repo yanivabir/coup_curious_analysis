@@ -6,6 +6,11 @@
  docker run --rm -p 8787:8787 -e PASSWORD=democratia -v $(pwd):/home/rstudio/analysis -v $(dirname `pwd`)/data:/home/rstudio/data -v $(dirname `pwd`)/saved_models:/home/rstudio/saved_models yanivabir/coup:v1.1ma
  ```
  
+To knit one of the Rmd files, use the following command:
+```
+docker run -it --rm -v $(pwd):/home/rstudio/analysis -v $(dirname `pwd`)/data:/home/rstudio/data -v $(dirname `pwd`)/saved_models:/home/rstudio/saved_models yanivabir/coup:v1.1ma bash -c "cd /home/rstudio/analysis; Rscript -e \"library(rmarkdown); markdown::render('question_attributes.Rmd')\""
+```
+ 
 ## Progress log:
 
 ### 07/05/2023
