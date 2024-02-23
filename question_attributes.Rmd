@@ -6,9 +6,9 @@ date: "2024-02-22"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-	echo = FALSE,
-	message = FALSE,
-	warning = FALSE
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
 )
 # Load libraries
 library(data.table)
@@ -58,16 +58,19 @@ sum_draws <- function(x) data.table(
 
 sum_cat <- function(pred){
   assert("Skip, wait, know not in the expected order", 
-       sum(names(pred[1,1,]) == c("skip", "wait", "know")) == 3)
+         sum(names(pred[1,1,]) == c("skip", "wait", "know")) == 3)
   
   # Calculate wait vs. skip
-  pred_wait <- pred[, , 2] - pred[, , 1]
+  pred_wait <- pred[, , 2] / (pred[, , 1] + pred[, , 2])
+  
+  assert("operation wasn't elementwise",
+         pred_wait[1,1] == (pred[1, 1, 2] / (pred[1, 1, 1] + pred[1, 1, 2])))
   
   # Summarize over draws
   pred_wait <- sum_draws(pred_wait)
   
   # Calculate know vs. skip
-  pred_know <- pred[, , 3] - pred[, , 1]
+  pred_know <- pred[, , 3] / (pred[, , 1] + pred[, , 3])
   
   # Summarize over draws
   pred_know <- sum_draws(pred_know)
@@ -75,121 +78,311 @@ sum_cat <- function(pred){
   return(list(pred_wait, pred_know))
 }
 
+plot_wait_know_attr <- function(model, col, label,
+                                attributes = c("useful", "confidence", "affect"),
+                                quadratic = T) {
+  
+  # Prepare values for prediction
+  plot_dat <- rbindlist(lapply(unique(model$data$block), 
+                     function(x) data.table(
+                       col = plot_seq(model$data[col][model$data$block == x,]),
+                       block = x)))
+    
+  colnames(plot_dat) <- c(col, "block")
+  
+  # Set all additional predictors to median
+  plot_dat[, wait_s := median(model$data$wait_s)]
+  
+  other_attr <- attributes[attributes != col]
+  plot_dat[, (other_attr) := lapply(other_attr, function(x)
+    median(model$data[x][[1]]))]
+  
+  if (quadratic){
+    plot_dat[, `I(confidence^2)` := confidence ^ 2]
+    plot_dat[, `I(affect^2)` := affect ^ 2]
+    plot_dat[, `I(useful^2)` := useful ^ 2]
+  }
+  
+  # Predict - this returns ndraws x npoints x 3
+  pred <- fitted(
+    model,
+    newdata = plot_dat,
+    re_formula = NA,
+    summary = F,
+    draw_ids = sample(1:4000, n_draws)
+  )
+  
+  # Summarize as wait, know vs. skip
+  list[pred_wait, pred_know] <- sum_cat(pred)
+  
+  # Plot waiting
+  pred_wait <- cbind(plot_dat, pred_wait)
+  pred_wait[, block := factor(block,
+                              levels = block_levels,
+                              labels = block_labels)]
+  pred_wait[, x := get(col)]
+  
+  p_wait <- ggplot(pred_wait, aes(
+    x = x,
+    y = m,
+    fill = block,
+    color = block
+  )) +
+    labs(
+      x = label,
+      y = "Prop. waited vs. skipped",
+      color = "Block",
+      fill = "",
+      linetype = "Block"
+    ) +
+    scale_x_continuous(expand = expansion(mult = c(0, 0))) +
+    scale_fill_manual(breaks = block_labels,
+                      values = block_colors) +
+    scale_color_manual(breaks = block_labels,
+                       values = block_colors) +
+    scale_linetype_manual(breaks = block_labels,
+                          values = block_lines) +
+    theme(legend.position = "none")
+  
+  p_wait <- getGeoms(p_wait,
+                     pred_wait,
+                     col = "block",
+                     fill_legend = T)
+  
+  # Plot know
+  pred_know <- cbind(plot_dat, pred_know)
+  pred_know[, block := factor(block,
+                              levels = block_levels,
+                              labels = block_labels)]
+  pred_know[, x := get(col)]
+  
+  p_know <- ggplot(pred_know, aes(
+    x = x,
+    y = m,
+    fill = block,
+    color = block
+  )) +
+    labs(
+      x = label,
+      y = "Prop. known vs. skipped",
+      color = "Question type",
+      fill = "Question type",
+      linetype = "Question type"
+    ) +
+    scale_x_continuous(expand = expansion(mult = c(0, 0))) +
+    scale_fill_manual(breaks = block_labels,
+                      values = block_colors) +
+    scale_color_manual(breaks = block_labels,
+                       values = block_colors) +
+    scale_linetype_manual(breaks = block_labels,
+                          values = block_lines) +
+    theme(legend.position = "none")
+  
+  p_know <- getGeoms(p_know,
+                     pred_know,
+                     col = "block",
+                     fill_legend = T)
+  
+  list[p_wait, p_know] <- set_common_y_limits(p_wait, p_know)
+  
+  l <- get_legend(p_know + theme(
+    legend.position = "top",
+    legend.justification = "center"
+  ))
+  
+  p <- plot_grid(
+    l,
+    plot_grid(p_wait,
+              p_know,
+              nrow = 1),
+    rel_heights = c(.1, 1),
+    ncol = 1
+  )
+  
+  # This might help with memory usage
+  gc()
+  
+  return(p)
+}
+
 chm1 <- brm(file = file.path(savedModelsDir, "chm1"))
+
 set.seed(0)
 ```
 
 ## Model
 This presentation contains plots with the outcome of a model predicting choosing 'wait' and choosing 'know', relative to choosing 'skip'. It uses a categorical model, and the effects on wait and know can be thought of as independent. This is the formula for the model:
 
+`r as.character(chm1$formula)[[1]]`
+
 ## Perceived answer usefulness
 ```{r usefulness}
+plot_wait_know_attr(chm1, "useful", "Percieved answer usefulness (std.)")
+```
+
+## Confidence about answer
+```{r confidence}
+plot_wait_know_attr(chm1, "confidence", "Confidence about answer (std.)")
+```
+
+
+## Excpected affective response to answer
+```{r affect}
+plot_wait_know_attr(chm1, "affect", "Expected affective response (std.)\n(negative to positive)")
+```
+
+## Wait duration
+```{r duration}
 # Prepare values for prediction
-use_plot_dat <- as.data.table(
+plot_dat <- as.data.table(
   expand.grid(
-    wait_s = median(chm1$data$wait_s),
-    block = unique(chm1$data$block),
+    wait_s = unique(chm1$data$wait_s),
+    block = NA,
     confidence = median(chm1$data$confidence),
-    affect = median(chm1$data$affect),
-    useful = plot_seq(chm1$data$useful)
+    useful = median(chm1$data$useful),
+    affect = median(chm1$data$affect)
   )
 )
 
-use_plot_dat[, `I(confidence^2)` := confidence^2]
-use_plot_dat[, `I(affect^2)` := affect^2]
-use_plot_dat[, `I(useful^2)` := useful^2]
+plot_dat[, `I(confidence^2)` := confidence ^ 2]
+plot_dat[, `I(affect^2)` := affect ^ 2]
+plot_dat[, `I(useful^2)` := useful ^ 2]
 
 # Predict - this returns ndraws x npoints x 3
-use_pred <- fitted(chm1, newdata = use_plot_dat, 
-                                     re_formula = NA, summary = F,
-                                     draw_ids = sample(1:4000, n_draws))
+pred <- fitted(
+  chm1,
+  newdata = plot_dat,
+  re_formula = NA,
+  summary = F,
+  draw_ids = sample(1:4000, n_draws)
+)
 
 # Summarize as wait, know vs. skip
-list[use_pred_wait, use_pred_know] <- sum_cat(use_pred)
+list[pred_wait, pred_know] <- sum_cat(pred)
 
 # Plot waiting
-use_pred_wait <- cbind(use_plot_dat, use_pred_wait)
-use_pred_wait[, block := factor(block,
-                                levels = block_levels,
-                                labels = block_labels)]
+pred_wait <- cbind(plot_dat, pred_wait)
 
-p_use_wait <- ggplot(use_pred_wait, aes(
-  x = useful,
+pred_wait[, dur := c(3,6,9,12)]
+
+p_dur_wait <- ggplot(pred_wait, aes(
+  x = dur,
   y = m,
-  fill = block,
-  color = block
+  ymin = lb,
+  ymax = ub,
 )) +
+  geom_pointrange() +
   labs(
-    x = "Percieved answer usefulness (std.)",
+    x = "Wait duration (s)",
     y = "Prop. waited vs. skipped",
-    color = "Block",
-    fill = "",
-    linetype = "Block"
-  ) +
-  scale_x_continuous(expand = expansion(mult = c(0, 0))) +
-  scale_fill_manual(breaks = block_labels,
-                    values = block_colors) +
-  scale_color_manual(breaks = block_labels,
-                     values = block_colors) +
-  scale_linetype_manual(breaks = block_labels,
-                        values = block_lines) +
-  theme(legend.position = "none")
-
-p_use_wait <- getGeoms(
-  p_use_wait,
-  use_pred_wait,
-  col = "block",
-  fill_legend = T
-)
+  )
 
 # Plot know
-use_pred_know <- cbind(use_plot_dat, use_pred_know)
-use_pred_know[, block := factor(block,
-                                levels = block_levels,
-                                labels = block_labels)]
+pred_know <- cbind(plot_dat, pred_know)
+pred_know[, block := factor(block,
+                            levels = block_levels,
+                            labels = block_labels)]
+pred_know[, dur := c(3,6,9,12)]
 
-p_use_know <- ggplot(use_pred_know, aes(
-  x = useful,
+p_dur_know <- ggplot(pred_know, aes(
+  x = dur,
   y = m,
-  fill = block,
-  color = block
+  ymin = lb,
+  ymax = ub,
 )) +
+  geom_pointrange() +
   labs(
-    x = "Percieved answer usefulness (std.)",
+    x = "Wait duration (s)",
     y = "Prop. known vs. skipped",
-    color = "Block",
-    fill = "Block",
-    linetype = "Block"
-  ) +
-  scale_x_continuous(expand = expansion(mult = c(0, 0))) +
-  scale_fill_manual(breaks = block_labels,
-                    values = block_colors) +
+  )
+
+list[p_dur_wait, p_dur_know] <- set_common_y_limits(p_dur_wait, p_dur_know)
+
+plot_grid(p_dur_wait,
+            p_dur_know,
+            nrow = 1)
+```
+
+## Relations between question attributes
+
+```{r attr_cor}
+# Free up memory
+rm(chm1)
+
+rm0 <- brm(file = file.path(savedModelsDir, "rm0"))
+
+qatr_plot_data <- unique(as.data.table(rm0$data)[, .(block, questionId)])
+
+qatr_fitted_mat <- fitted(rm0,
+                      newdata = qatr_plot_data,
+                      re_formula = "mvbind(confidence, affect, useful) ~ 1 + block + (1 | q | questionId)",
+                      scale = "linear",
+                      probs = c(0.25, 0.75))
+
+rownames(qatr_fitted_mat) <- qatr_plot_data$questionId
+
+# Convert to data.table
+qatr_fitted <- as.data.table(qatr_fitted_mat)
+
+# Add prefix to column names based on third dimension
+qatr_fitted[, variable := paste(V3, V2, sep = "_")]
+
+# Convert back to wide format
+qatr_fitted <- dcast(qatr_fitted[, .(V1, value, variable)], V1 ~ variable, 
+                     value.var = "value")
+
+colnames(qatr_fitted)[1] <- "questionId"
+
+qatr_fitted <- merge(qatr_fitted, qatr_plot_data, by = "questionId", all.x = T)
+qatr_fitted[, block := factor(block,
+                              levels = block_levels,
+                              labels = block_labels)]
+
+p_conf_use <- ggplot(qatr_fitted, aes(x = confidence_Estimate, y = useful_Estimate, color = block)) +
+  geom_errorbarh(aes(xmin = confidence_Q25, xmax = confidence_Q75)) +
+  geom_errorbar(aes(ymin = useful_Q25, ymax = useful_Q75)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE) +
+  labs(x = "Confidence (std.)",
+       y = "Usefulness (std.)") +
   scale_color_manual(breaks = block_labels,
-                     values = block_colors) +
-  scale_linetype_manual(breaks = block_labels,
-                        values = block_lines) +
-  theme(legend.position = "none")
+                       values = block_colors)
 
-p_use_know <- getGeoms(
-  p_use_know,
-  use_pred_know,
-  col = "block",
-  fill_legend = T
-)
+p_conf_aff <- ggplot(qatr_fitted, aes(x = confidence_Estimate, y = affect_Estimate, color = block)) +
+  geom_errorbarh(aes(xmin = confidence_Q25, xmax = confidence_Q75)) +
+  geom_errorbar(aes(ymin = affect_Q25, ymax = affect_Q75)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE) +
+  labs(x = "Confidence (std.)",
+       y = "Expected affect (std.)") +
+  scale_color_manual(breaks = block_labels,
+                       values = block_colors)
 
-use_l <- get_legend(p_use_know + theme(legend.position = "top",
-      legend.justification = "center"))
+p_use_aff <- ggplot(qatr_fitted, aes(x = affect_Estimate, y = useful_Estimate, color = block)) +
+  geom_errorbar(aes(ymin = useful_Q25, ymax = useful_Q75)) +
+  geom_errorbarh(aes(xmin = affect_Q25, xmax = affect_Q75)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE) +
+  labs(y = "Usefulness (std.)",
+       x = "Expected affect (std.)",
+       color = "Question type") +
+  scale_color_manual(breaks = block_labels,
+                       values = block_colors)
 
-p_use <- plot_grid(
-  use_l,
+attr_l <- get_legend(p_use_aff + theme(legend.position = "top",
+    legend.justification = "center"))
+
+plot_grid(
+  attr_l,
   plot_grid(
-    p_use_wait,
-    p_use_know,
+    p_conf_use,
+    p_conf_aff,
+    p_use_aff,
     nrow = 1
   ),
-  rel_heights = c(.1, 1),
-  ncol = 1
+  ncol = 1,
+  rel_heights = c(.1, 1)
 )
-
 ```
+Polynomial regression lines for plotting purposes only.
 
