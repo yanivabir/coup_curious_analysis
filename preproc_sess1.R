@@ -315,7 +315,8 @@ write.csv(know_test, file = file.path(preprocDatDir, "knowledge_test_data.csv"))
 # Preprocess questionnaire data ----
 quest_cats <- c("stai", "gallup", "reg_mode", "apathy",
                 "coup_relevance", "iwin",
-                "demographics", "difficulties")
+                "demographics", "difficulties",
+                "coup_reg_focus")
 quest <- data[category %in% quest_cats]
 quest <- quest[, .(response = fromJSON(gsub('""', '"', responses)),
                      probe = names(fromJSON(gsub('""', '"', responses)))), 
@@ -331,7 +332,7 @@ quest[(category == "gallup") & (response == "לא"), response := "0"]
 quest <- dcast(quest, PID + sess ~ probe, value.var = "response")
 
 # Transform questionnaire ratings to numeric
-numeric_items <- c("stai|apathy|age|coup_rel|reg|gallup|fluent|secular_religious|left_right|iwin|socialism_capitalism")
+numeric_items <- c("stai|apathy|age|coup_rel|reg_Q|coup_reg|gallup|fluent|secular_religious|left_right|iwin|socialism_capitalism")
 ns <- colnames(quest)
 quest <- cbind(quest[, ns[!grepl(numeric_items, ns)], with = F],
       quest[, ns[grepl(numeric_items, ns)], with = F][, lapply(.SD, as.numeric)])
@@ -340,7 +341,7 @@ quest <- cbind(quest[, ns[!grepl(numeric_items, ns)], with = F],
 quality <- merge(quality, quest[, .(PID, native_english, fluent, 
                                     difficult, instructions, strategy)],
                  by = "PID", all.x = T)
-t_quest_cats <- "stai|apathy|reg|coup_rel|gallup|secular_religious|left_right|iwin|socialism_capitalism"
+t_quest_cats <- "stai|apathy|reg_Q|coup_rel|gallup|secular_religious|left_right|iwin|socialism_capitalism"
 n_quest_na <- data.table(PID = quest$PID, n_miss_quest = rowSums(quest[, ns[grepl(t_quest_cats, ns)], 
                                                                        with = F][, lapply(.SD, is.na)]))
 quality <- merge(quality, n_quest_na, by = "PID", all.x = T)
@@ -398,6 +399,12 @@ quest[, coup_rel_18 := 4 - coup_rel_18] # Reform will improve economic status
 quest[, coup_rel_20 := 4 - coup_rel_20] # No reform no Jewish state
 quest[, coup_rel_21 := 4 - coup_rel_21] # I support reform
 quest[, coup_rel_23 := 4 - coup_rel_23] # I support reform relative to two weeks ago
+
+# Coup regulatory focus - higher is promotion
+quest[, coup_reg_focus_06 := 4 - coup_reg_focus_06] # Prevent harm to state
+quest[, coup_reg_focus_05 := 4 - coup_reg_focus_05] # My duty
+quest[, coup_reg_focus_08 := 4 - coup_reg_focus_08] # Conserve character
+quest[, coup_reg_focus_07 := 4- coup_reg_focus_07] # Damage control
 
 # Add midgam data ----
 midgam[, firstSession := min(startTime), by = userId]
