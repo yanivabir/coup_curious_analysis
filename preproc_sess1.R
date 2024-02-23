@@ -533,6 +533,8 @@ quest <- merge(quest, midgam[, .(PID, midgam_age, midgam_gender, family,
                                 income, birth_region, party2021, party2022)],
                by.x = "sPID", by.y = "PID", all.x = T)
 
+quest$sPID <- NULL
+
 # Save questionnaire to file
 save(quest, file = file.path(preprocDatDir, "quest_data.rda"))
 
