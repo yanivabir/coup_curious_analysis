@@ -24,12 +24,15 @@ theme_set(theme_minimal()  +
                   plot.margin = margin(1.5,2,1.5,2)))
 library(brms)
 library(gsubfn)
+library(plotly)
 source("utils.R")
 
 
 savedModelsDir <- file.path("..", "saved_models")
+cacheDir <- file.path("..", "saved_models", "question_attributes")
 res <- 100 # Plotting resolution for lines
 n_draws <- 300 # Subset of draws for prediction
+use_model <- "chm1"
 
 # Colors, lines labels
 block_colors <- c("#cc1337", "#005b8d")
@@ -39,32 +42,37 @@ block_lines <- c("solid", "dashed")
 
 
 # Return sequence for plotting
-plot_seq <- function(x){
+plot_seq <- function(x) {
   return(seq(min(x), max(x), length.out = res))
 }
 
 # Summarize draws from categorical model
-llb <- function(x) quantile(x, 0.025)
-lb <- function(x) quantile(x, 0.25)
-ub <- function(x) quantile(x, 0.75)
-uub <- function(x) quantile(x, 0.975)
-sum_draws <- function(x) data.table(
-  m = apply(x, 2, median),
-  llb = apply(x, 2, llb),
-  lb = apply(x, 2, lb),
-  ub = apply(x, 2, ub),
-  uub = apply(x, 2, uub)
-)
+llb <- function(x)
+  quantile(x, 0.025)
+lb <- function(x)
+  quantile(x, 0.25)
+ub <- function(x)
+  quantile(x, 0.75)
+uub <- function(x)
+  quantile(x, 0.975)
+sum_draws <- function(x)
+  data.table(
+    m = apply(x, 2, median),
+    llb = apply(x, 2, llb),
+    lb = apply(x, 2, lb),
+    ub = apply(x, 2, ub),
+    uub = apply(x, 2, uub)
+  )
 
-sum_cat <- function(pred){
-  assert("Skip, wait, know not in the expected order", 
-         sum(names(pred[1,1,]) == c("skip", "wait", "know")) == 3)
+sum_cat <- function(pred) {
+  assert("Skip, wait, know not in the expected order",
+         sum(names(pred[1, 1, ]) == c("skip", "wait", "know")) == 3)
   
   # Calculate wait vs. skip
   pred_wait <- pred[, , 2] / (pred[, , 1] + pred[, , 2])
   
   assert("operation wasn't elementwise",
-         pred_wait[1,1] == (pred[1, 1, 2] / (pred[1, 1, 1] + pred[1, 1, 2])))
+         pred_wait[1, 1] == (pred[1, 1, 2] / (pred[1, 1, 1] + pred[1, 1, 2])))
   
   # Summarize over draws
   pred_wait <- sum_draws(pred_wait)
@@ -78,49 +86,114 @@ sum_cat <- function(pred){
   return(list(pred_wait, pred_know))
 }
 
-plot_wait_know_attr <- function(model, col, label,
+plot_wait_know_attr <- function(model,
+                                col,
+                                label,
                                 attributes = c("useful", "confidence", "affect"),
                                 quadratic = T) {
-  
   # Prepare values for prediction
-  plot_dat <- rbindlist(lapply(unique(model$data$block), 
-                     function(x) data.table(
-                       col = plot_seq(model$data[col][model$data$block == x,]),
-                       block = x)))
-    
+  plot_dat <- rbindlist(lapply(unique(model$data$block),
+                               function(x)
+                                 data.table(col = plot_seq(model$data[col][model$data$block == x, ]),
+                                            block = x)))
+  
   colnames(plot_dat) <- c(col, "block")
   
   # Set all additional predictors to median
-  plot_dat[, wait_s := median(model$data$wait_s)]
+  plot_dat[, wait_s := 0]
   
   other_attr <- attributes[attributes != col]
   plot_dat[, (other_attr) := lapply(other_attr, function(x)
     median(model$data[x][[1]]))]
   
-  if (quadratic){
+  if (quadratic) {
     plot_dat[, `I(confidence^2)` := confidence ^ 2]
     plot_dat[, `I(affect^2)` := affect ^ 2]
     plot_dat[, `I(useful^2)` := useful ^ 2]
   }
   
   # Predict - this returns ndraws x npoints x 3
-  pred <- fitted(
-    model,
-    newdata = plot_dat,
-    re_formula = NA,
-    summary = F,
-    draw_ids = sample(1:4000, n_draws)
-  )
+  # Fit only if not saved
+  pred_file <- file.path(cacheDir,
+                         paste0(use_model,
+                                "_",
+                                col,
+                                "_line_predictions.rda"))
+  if (!file.exists(pred_file)) {
+    pred <- fitted(
+      model,
+      newdata = plot_dat,
+      re_formula = NA,
+      summary = F,
+      draw_ids = sample(1:4000, n_draws)
+    )
+    save(pred, file = pred_file)
+  } else {
+    load(pred_file)
+  }
+  
   
   # Summarize as wait, know vs. skip
   list[pred_wait, pred_know] <- sum_cat(pred)
   
-  # Plot waiting
   pred_wait <- cbind(plot_dat, pred_wait)
+  
+  # Predict per question
+  qcoefs_data <- unique(as.data.table(model$data)[, .(questionId,
+                                                      block,
+                                                      confidence,
+                                                      useful,
+                                                      affect)], by = "questionId")
+  # Take residuals over other attributres
+  qcoefs_data[, (other_attr) := lapply(other_attr, function(x)
+    median(model$data[x][[1]]))]
+  qcoefs_data[, wait_s := 0]
+  
+  if (quadratic) {
+    qcoefs_data[, `I(confidence^2)` := confidence ^ 2]
+    qcoefs_data[, `I(affect^2)` := affect ^ 2]
+    qcoefs_data[, `I(useful^2)` := useful ^ 2]
+  }
+  
+  # Fit only if not saved
+  qcoef_file <- file.path(cacheDir,
+                         paste0(use_model,
+                                "_",
+                                col,
+                                "_point_predictions.rda"))
+  if (!file.exists(qcoef_file)) {
+    qcoefs <- fitted(
+      model,
+      newdata = qcoefs_data,
+      re_formula = ~ (1 + wait_s | questionId),
+      summary = F,
+      draw_ids = sample(1:4000, n_draws)
+    )
+    save(qcoefs, file = qcoef_file)
+  } else {
+    load(qcoef_file)
+  }
+  
+  # Summarize as wait, know vs. skip
+  list[qcoefs_wait, qcoefs_know] <- sum_cat(qcoefs)
+  
+  qcoefs_wait <- cbind(qcoefs_data, qcoefs_wait)
+  qcoefs_know <- cbind(qcoefs_data, qcoefs_know)
+  
+  qcoefs_wait <- merge(qcoefs_wait, quest_text, by = "questionId")
+  qcoefs_know <- merge(qcoefs_know, quest_text, by = "questionId")
+  
+  
+  
+  # Plot waiting
   pred_wait[, block := factor(block,
                               levels = block_levels,
                               labels = block_labels)]
+  qcoefs_wait[, block := factor(block,
+                                levels = block_levels,
+                                labels = block_labels)]
   pred_wait[, x := get(col)]
+  qcoefs_wait[, x := get(col)]
   
   p_wait <- ggplot(pred_wait, aes(
     x = x,
@@ -144,17 +217,29 @@ plot_wait_know_attr <- function(model, col, label,
                           values = block_lines) +
     theme(legend.position = "none")
   
+  p_wait <- p_wait + geom_point(data = qcoefs_wait,
+                                aes(x = x,
+                                    y = m,
+                                    text = question),
+                                alpha = 0.3)
+  
   p_wait <- getGeoms(p_wait,
                      pred_wait,
                      col = "block",
                      fill_legend = T)
+  
   
   # Plot know
   pred_know <- cbind(plot_dat, pred_know)
   pred_know[, block := factor(block,
                               levels = block_levels,
                               labels = block_labels)]
+  qcoefs_know[, block := factor(block,
+                                levels = block_levels,
+                                labels = block_labels)]
+  
   pred_know[, x := get(col)]
+  qcoefs_know[, x := get(col)]
   
   p_know <- ggplot(pred_know, aes(
     x = x,
@@ -178,6 +263,15 @@ plot_wait_know_attr <- function(model, col, label,
                           values = block_lines) +
     theme(legend.position = "none")
   
+  p_know <- p_know + geom_point(data = qcoefs_know,
+                                aes(
+                                  x = x,
+                                  y = m,
+                                  color = block,
+                                  text = question
+                                ),
+                                alpha = 0.3)
+  
   p_know <- getGeoms(p_know,
                      pred_know,
                      col = "block",
@@ -190,14 +284,31 @@ plot_wait_know_attr <- function(model, col, label,
     legend.justification = "center"
   ))
   
-  p <- plot_grid(
-    l,
-    plot_grid(p_wait,
-              p_know,
-              nrow = 1),
-    rel_heights = c(.1, 1),
-    ncol = 1
-  )
+  p_know <- ggplotly(p_know, tooltip = "question")
+  
+  p_wait <- ggplotly(p_wait, tooltip = "question")
+  
+  # Remove legend from anything but lines
+  for (ii in c(1:4, 6,7)) {
+    p_know$x$data[[ii]]$showlegend <- F
+    p_wait$x$data[[ii]]$showlegend <- F
+  }
+  p_know$x$data[[5]]$showlegend <- F
+  p_know$x$data[[8]]$showlegend <- F
+  
+  p <- subplot(p_wait,
+               p_know,
+               titleX = T,
+               titleY = T,
+               margin = 0.05) %>%
+    layout(
+      showlegend = T,
+      legend = list(
+        x = 0,
+        xanchor = 'left',
+        yanchor = 'top'
+      )
+    )
   
   # This might help with memory usage
   gc()
@@ -205,7 +316,15 @@ plot_wait_know_attr <- function(model, col, label,
   return(p)
 }
 
-chm1 <- brm(file = file.path(savedModelsDir, "chm1"))
+chm1 <- brm(file = file.path(savedModelsDir, use_model))
+
+sampleName <- "v1.01"
+source("load_data_and_exclude.R")
+list[wait, rating_clps, know_test,
+     prob_judge, quest, quality] = load_exclude(sampleName)
+
+quest_text <- unique(wait[, .(questionId, question)])
+quest_text[, question := gsub('""""', '"', question)]
 
 set.seed(0)
 ```
@@ -219,17 +338,20 @@ This presentation contains plots with the outcome of a model predicting choosing
 ```{r usefulness}
 plot_wait_know_attr(chm1, "useful", "Percieved answer usefulness (std.)")
 ```
+Points are adjusted for other attributes (confidence, affect), and so don't align across slides.
 
 ## Confidence about answer
 ```{r confidence}
 plot_wait_know_attr(chm1, "confidence", "Confidence about answer (std.)")
 ```
+Points are adjusted for other attributes (confidence, affect), and so don't align across slides.
 
 
 ## Excpected affective response to answer
 ```{r affect}
 plot_wait_know_attr(chm1, "affect", "Expected affective response (std.)\n(negative to positive)")
 ```
+Points are adjusted for other attributes (confidence, affect), and so don't align across slides.
 
 ## Wait duration
 ```{r duration}
@@ -249,13 +371,22 @@ plot_dat[, `I(affect^2)` := affect ^ 2]
 plot_dat[, `I(useful^2)` := useful ^ 2]
 
 # Predict - this returns ndraws x npoints x 3
-pred <- fitted(
-  chm1,
-  newdata = plot_dat,
-  re_formula = NA,
-  summary = F,
-  draw_ids = sample(1:4000, n_draws)
-)
+pred_file <- file.path(cacheDir,
+                       paste0(use_model,
+                              "_duration_line_predictions.rda"))
+if (!file.exists(pred_file)) {
+
+  pred <- fitted(
+    chm1,
+    newdata = plot_dat,
+    re_formula = NA,
+    summary = F,
+    draw_ids = sample(1:4000, n_draws)
+  )
+  save(pred, file = pred_file)
+} else {
+  load(pred_file)
+}
 
 # Summarize as wait, know vs. skip
 list[pred_wait, pred_know] <- sum_cat(pred)
@@ -313,11 +444,18 @@ rm0 <- brm(file = file.path(savedModelsDir, "rm0"))
 
 qatr_plot_data <- unique(as.data.table(rm0$data)[, .(block, questionId)])
 
-qatr_fitted_mat <- fitted(rm0,
-                      newdata = qatr_plot_data,
-                      re_formula = "mvbind(confidence, affect, useful) ~ 1 + block + (1 | q | questionId)",
-                      scale = "linear",
-                      probs = c(0.25, 0.75))
+qatr_file <- file.path(cacheDir,
+                       paste0("rm0_question_predictions.rda"))
+if (!file.exists(qatr_file)) {
+  qatr_fitted_mat <- fitted(rm0,
+                        newdata = qatr_plot_data,
+                        re_formula = "mvbind(confidence, affect, useful) ~ 1 + block + (1 | q | questionId)",
+                        scale = "linear",
+                        probs = c(0.25, 0.75))
+  save(qatr_fitted_mat, file = qatr_file)
+}else{
+  load(qatr_file)
+}
 
 rownames(qatr_fitted_mat) <- qatr_plot_data$questionId
 
@@ -338,30 +476,38 @@ qatr_fitted[, block := factor(block,
                               levels = block_levels,
                               labels = block_labels)]
 
-p_conf_use <- ggplot(qatr_fitted, aes(x = confidence_Estimate, y = useful_Estimate, color = block)) +
+qatr_fitted <- merge(qatr_fitted, quest_text, by = "questionId")
+
+p_conf_use <- ggplot(qatr_fitted, aes(x = confidence_Estimate, 
+                                      y = useful_Estimate, 
+                                      color = block)) +
   geom_errorbarh(aes(xmin = confidence_Q25, xmax = confidence_Q75)) +
   geom_errorbar(aes(ymin = useful_Q25, ymax = useful_Q75)) +
-  geom_point() +
+  geom_point(aes(text = question)) +
   geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE) +
   labs(x = "Confidence (std.)",
        y = "Usefulness (std.)") +
   scale_color_manual(breaks = block_labels,
                        values = block_colors)
 
-p_conf_aff <- ggplot(qatr_fitted, aes(x = confidence_Estimate, y = affect_Estimate, color = block)) +
+p_conf_aff <- ggplot(qatr_fitted, aes(x = confidence_Estimate, 
+                                      y = affect_Estimate, 
+                                      color = block)) +
   geom_errorbarh(aes(xmin = confidence_Q25, xmax = confidence_Q75)) +
   geom_errorbar(aes(ymin = affect_Q25, ymax = affect_Q75)) +
-  geom_point() +
+  geom_point(aes(text = question)) +
   geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE) +
   labs(x = "Confidence (std.)",
        y = "Expected affect (std.)") +
   scale_color_manual(breaks = block_labels,
                        values = block_colors)
 
-p_use_aff <- ggplot(qatr_fitted, aes(x = affect_Estimate, y = useful_Estimate, color = block)) +
+p_use_aff <- ggplot(qatr_fitted, aes(x = affect_Estimate, 
+                                     y = useful_Estimate, 
+                                     color = block)) +
   geom_errorbar(aes(ymin = useful_Q25, ymax = useful_Q75)) +
   geom_errorbarh(aes(xmin = affect_Q25, xmax = affect_Q75)) +
-  geom_point() +
+  geom_point(aes(text = question)) +
   geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE) +
   labs(y = "Usefulness (std.)",
        x = "Expected affect (std.)",
@@ -369,20 +515,33 @@ p_use_aff <- ggplot(qatr_fitted, aes(x = affect_Estimate, y = useful_Estimate, c
   scale_color_manual(breaks = block_labels,
                        values = block_colors)
 
-attr_l <- get_legend(p_use_aff + theme(legend.position = "top",
-    legend.justification = "center"))
+# attr_l <- get_legend(p_use_aff + theme(legend.position = "top",
+#     legend.justification = "center"))
 
-plot_grid(
-  attr_l,
-  plot_grid(
-    p_conf_use,
-    p_conf_aff,
-    p_use_aff,
-    nrow = 1
-  ),
-  ncol = 1,
-  rel_heights = c(.1, 1)
-)
+# plot_grid(
+#   attr_l,
+#   plot_grid(
+#     p_conf_use,
+#     p_conf_aff,
+#     p_use_aff,
+#     nrow = 1
+#   ),
+#   ncol = 1,
+#   rel_heights = c(.1, 1)
+# )
+
+p_conf_use <- ggplotly(p_conf_use, tooltip = "text")
+p_conf_aff <- ggplotly(p_conf_aff, tooltip = "text")
+p_use_aff <- ggplotly(p_use_aff, tooltip = "text")
+
+subplot(
+  p_conf_use,
+  p_conf_aff,
+  p_use_aff,
+  titleX = T,
+  titleY = T,
+  margin = 0.05
+) %>% layout()
 ```
 Polynomial regression lines for plotting purposes only.
 
