@@ -337,7 +337,7 @@ jobid <- launch_model(data = rating_clps_ID_ff,
                       project = "coup")
 
 
-(rm0 <- fetch_results(
-  model_name = "rm0",
+(rmm1 <- fetch_results(
+  model_name = "rmm1",
   project = "coup",
 ))

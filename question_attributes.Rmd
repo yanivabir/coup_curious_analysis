@@ -40,30 +40,6 @@ block_labels <- c("Coup-related", "General")
 block_levels <- c("coup", "general")
 block_lines <- c("solid", "dashed")
 
-
-# Return sequence for plotting
-plot_seq <- function(x) {
-  return(seq(min(x), max(x), length.out = res))
-}
-
-# Summarize draws from categorical model
-llb <- function(x)
-  quantile(x, 0.025)
-lb <- function(x)
-  quantile(x, 0.25)
-ub <- function(x)
-  quantile(x, 0.75)
-uub <- function(x)
-  quantile(x, 0.975)
-sum_draws <- function(x)
-  data.table(
-    m = apply(x, 2, median),
-    llb = apply(x, 2, llb),
-    lb = apply(x, 2, lb),
-    ub = apply(x, 2, ub),
-    uub = apply(x, 2, uub)
-  )
-
 sum_cat <- function(pred) {
   assert("Skip, wait, know not in the expected order",
          sum(names(pred[1, 1, ]) == c("skip", "wait", "know")) == 3)

@@ -61,7 +61,7 @@ printnum <- function(x) {
 
 printp <- function(x) {
   if (x >= .001) {
-    return(paste0("=",printnum(x)))
+    return(paste0("=", printnum(x)))
   } else {
     return("<0.001")
   }
@@ -90,3 +90,26 @@ set_common_y_limits <- function(...) {
   # Return the modified plots
   return(plots_list)
 }
+
+# Return sequence for plotting
+plot_seq <- function(x) {
+  return(seq(min(x), max(x), length.out = res))
+}
+
+# Summarize draws
+llb <- function(x)
+  quantile(x, 0.025)
+lb <- function(x)
+  quantile(x, 0.25)
+ub <- function(x)
+  quantile(x, 0.75)
+uub <- function(x)
+  quantile(x, 0.975)
+sum_draws <- function(x)
+  data.table(
+    m = apply(x, 2, median),
+    llb = apply(x, 2, llb),
+    lb = apply(x, 2, lb),
+    ub = apply(x, 2, ub),
+    uub = apply(x, 2, uub)
+  )
