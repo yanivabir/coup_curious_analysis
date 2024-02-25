@@ -60,4 +60,4 @@ COPY install_cmdstan.R install_cmdstan.R
 RUN ["r", "install_cmdstan.R"]
 # RUN sudo chown -R rstudio /home/rstudio/.cmdstanr
 
-
+RUN Rscript -e "install.packages('plotly')"
