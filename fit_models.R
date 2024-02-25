@@ -205,10 +205,10 @@ jobid <- launch_model(data = wait_ff,
 
 # Compare models for the necessity of quadratic terms ----
 # jobid <- launch_model(data = wait_ff,
-#                       formula = 'bf(choice ~ 1 + wait_s + block * confidence + 
+#                       formula = 'bf(choice ~ 1 + wait_s + block * confidence +
 #                         block * affect + block * useful +
-#                       (1 + wait_s + block * confidence + 
-#                         block * affect + block * useful | PID) + 
+#                       (1 + wait_s + block * confidence +
+#                         block * affect + block * useful | PID) +
 #               (1 + wait_s | questionId)) + categorical(refcat = "skip")',
 #                       prior = 'prior(normal(0,1), class = "b", dpar = "muknow") +
 #               prior(normal(0,1), class = "b", dpar = "muwait") +
@@ -223,11 +223,12 @@ jobid <- launch_model(data = wait_ff,
 #                       warmup = 2500,
 #                       chains = 4,
 #                       seed = 1,
-#                       cores = 32,
+#                       cores = 16,
 #                       criteria = "loo",
-#                       wall_time = "0-45:00",
+#                       wall_time = "0-10:00",
+#                       memory = "11gb",
 #                       project = "coup")
-# 
+
 # 
 # (chm1000 <- fetch_results(
 #   model_name = "chm1000",
@@ -239,13 +240,20 @@ jobid <- launch_model(data = wait_ff,
 source("compute_ID.R")
 list[naive_ID, alphas] <- computeNaive(quest)
 
-wait_ID_ff <- merge(wait_ff, naive_ID, by = "PID", all.x = T)
+add_ID <- function(dt, naive_ID) {
+  
+  dt_ff <- merge(dt, naive_ID, by = "PID")
+  
+  dt_ff[, affect_s := scale(naive_affect)]
+  dt_ff[, motivation_s := scale(naive_motivation)]
+  dt_ff[, coup_relevance_s := scale(naive_coup_relevance)]
+  dt_ff[, coup_attitude_s := scale(naive_coup_attitude)]
+  
+  
+  return(dt_ff)
+}
 
-wait_ID_ff[, affect_s := scale(naive_affect)]
-wait_ID_ff[, motivation_s := scale(naive_motivation)]
-wait_ID_ff[, coup_relevance_s := scale(naive_coup_relevance)]
-wait_ID_ff[, coup_attitude_s := scale(naive_coup_attitude)]
-
+wait_ID_ff <- add_ID(wait_ff, naive_ID)
 
 jobid_chmq1 <- launch_model(data = wait_ID_ff,
                       formula = 'bf(choice ~ 1 + wait_s + 
@@ -281,10 +289,11 @@ jobid_chmq1 <- launch_model(data = wait_ID_ff,
                       warmup = 2500,
                       chains = 4,
                       seed = 1,
-                      cores = 32,
-                      wall_time = "0-45:00",
+                      cores = 16,
+                      wall_time = "0-10:00",
                       project = "coup",
-                      criteria = "loo")
+                      criteria = "loo",
+                      memory = "11gb")
 
 
 
@@ -294,3 +303,41 @@ jobid_chmq1 <- launch_model(data = wait_ID_ff,
 ))
 
 
+# ID measures predict ratings ----
+rating_clps_ID_ff <- add_ID(rating_clps, naive_ID)
+
+
+jobid <- launch_model(data = rating_clps_ID_ff,
+                      formula = 'bf(mvbind(confidence, affect, useful) ~ 1 + 
+                      block * coup_relevance_s + block * coup_attitude_s +
+                      block * affect_s + block * motivation_s +
+                      block * I(coup_attitude_s^2) +
+                      (1 + block | p | PID) +
+                      (1 + coup_relevance_s + coup_attitude_s + affect_s + 
+                      motivation_s + I(coup_attitude_s^2) | q | questionId)) + 
+                      cumulative() + set_rescor(F)',
+                      prior = 'prior(normal(0,1), class = "b", resp = "affect") +
+             prior(normal(0,1), class = "b", resp = "confidence") +
+             prior(normal(0,1), class = "b", resp = "useful") +
+             prior(normal(0,1), class = "Intercept", resp = "affect") +
+             prior(normal(0,1), class = "Intercept", resp = "confidence") +
+             prior(normal(0,1), class = "Intercept", resp = "useful") +
+             prior(normal(0,1), class = "sd", resp = "affect") +
+             prior(normal(0,1), class = "sd", resp = "confidence") +
+             prior(normal(0,1), class = "sd", resp = "useful") + 
+             prior(lkj(2), class = "cor")',
+                      model_name = "rmm1",
+                      save_output = T,
+                      iter = 3500,
+                      warmup = 2500,
+                      chains = 4,
+                      seed = 1,
+                      cores = 32,
+                      wall_time = "0-25:00",
+                      project = "coup")
+
+
+(rm0 <- fetch_results(
+  model_name = "rm0",
+  project = "coup",
+))
