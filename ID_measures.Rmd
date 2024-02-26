@@ -1,6 +1,8 @@
 ---
-title: "ID_measures"
-output: ioslides_presentation
+title: "Rating and waiting by coup-related and control measures"
+output: 
+  ioslides_presentation:
+    smaller: true
 date: "2024-02-25"
 ---
 
@@ -266,9 +268,10 @@ list[p_coup_rel_affect,
 ```
 
 ## Model
-TK TK TK
+The first part of this presentation contains plots with the outcome of a model predicting the three question rating measures. It uses a multivariate ordinal regression model. This is the formula for the model:
 
-`r as.character(rmm1$formula)[[1]]`
+
+mv(useful, confidence, affect) ~ `r as.character(rmm1$formula[[1]]$confidence[[1]])[[3]]`
 
 ## Coup Relevance
 ```{r coup_relevance}
@@ -276,6 +279,8 @@ plot_rating_grid(p_coup_rel_useful,
                  p_coup_rel_confidence,
                  p_coup_rel_affect)
 ```
+
+Lines are predictions from model, points denote raw means+-SE.
 
 ## Coup Attitude
 ```{r coup_attitude}
@@ -285,16 +290,29 @@ plot_rating_grid(p_coup_att_useful,
 )
 ```
 
+Lines are predictions from model, points denote raw means+-SE.
+Seems like the polynomial does a decent job of capturing the shape here.
+
+
 ## Mood
+(STAI + Gallup wellbeing)
+
 ```{r affect}
 plot_rating_grid(p_aff_useful,
                  p_aff_confidence,
                  p_aff_affect)
 ```
 
+Lines are predictions from model, points denote raw means+-SE.
+
+
 ## Motivational activation
+(Apathy questionnaire + Regulatory Mode)
+
 ```{r motivation}
 plot_rating_grid(p_mot_useful,
                  p_mot_confidence,
                  p_mot_affect)
 ```
+
+Lines are predictions from model, points denote raw means+-SE.
