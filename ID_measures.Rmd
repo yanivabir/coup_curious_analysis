@@ -74,16 +74,6 @@ plot_rating_ID <- function(model,
     })
   }
   
-  # Prepare values for participant-wise prediciton ----
-  plot_dat_Ps <- unique(as.data.table(model$data)[, c("PID", "block", measures), with = F])
-  
-  # Compute quadratics
-  if (!is.null(quadratic)) {
-    lapply(quadratic, function(x) {
-      plot_dat_Ps[, paste0("I(", x, ")^2") := .(get(x) ^ 2)]
-    })
-  }
-  
   plot_pred <- function(resp,
                         resp_label) {
     print(paste0("Plotting ", resp_label, " by ", label))
@@ -111,36 +101,26 @@ plot_rating_ID <- function(model,
     pred_line[, x := get(col)]
     
     # Predict for participants ----
-    # Predict - this returns ndraws x npoints x 5
-    print("Predicting participant-wise effect")
-    pred_Ps <- fitted(
-      model,
-      newdata = plot_dat_Ps,
-      re_formula = ~ (1 + block | PID),
-      summary = F,
-      resp = resp
-    )
-    
-    # Summarize into mean raiting
-    pred_Ps <- sum_ordinal(pred_Ps)
-    
-    # Combine with predictors
-    pred_Ps <- cbind(plot_dat_Ps, pred_Ps)
-    
+    print("Computing raws means")
+
     # Bin and summarize
-    pred_Ps[, bin_n := factor(dplyr::ntile(get(col), nbins))]
-    pred_Ps[, bin := mean(get(col)), by = bin_n]
-    pred_Ps[, prec := 1 / sd]
-    pred_Ps_sum <-
-      pred_Ps[, .(m = wtd.mean(m, weights = prec, normwt = T),
-                  se = sqrt(wtd.var(
+    rm <- as.data.table(model$data)
+    rm <- rm[, .(m = mean(get(resp)),
+                 sd = sd(get(resp)),
+                 prec = 1 / sd(get(resp))), by = c("PID", "block", col)]
+    rm[, bin_n := factor(dplyr::ntile(get(col), nbins))]
+    rm[, bin := mean(get(col)), by = bin_n]
+    rm <- rm[prec < Inf]
+    rm_sum <-
+      rm[, .(m = Hmisc::wtd.mean(m, weights = prec, normwt = T),
+                  se = sqrt(Hmisc::wtd.var(
                     m, weights = prec, normwt = T
                   )
                   / .N)),
               by = c("bin", "block")]
-    pred_Ps_sum[, block := factor(block,
-                                  levels = block_levels,
-                                  labels = block_labels)]
+    rm_sum[, block := factor(block,
+                             levels = block_levels,
+                             labels = block_labels)]
     
     print("Plotting")
     p <- ggplot(pred_line, aes(
@@ -165,7 +145,7 @@ plot_rating_ID <- function(model,
                             values = block_lines) +
       theme(legend.position = "none") +
       geom_pointrange(
-        data = pred_Ps_sum,
+        data = rm_sum,
         aes(
           x = bin,
           y = m,
@@ -173,7 +153,8 @@ plot_rating_ID <- function(model,
           ymax = m + se,
           color = block
         ),
-        alpha = 0.3
+        alpha = 0.3,
+        show.legend = F
       )
     
     p <- getGeoms(p,
@@ -235,7 +216,7 @@ quest_text[, question := gsub('""""', '"', question)]
 set.seed(0)
 ```
 
-```{r ID_rating_plotting}
+```{r ID_rating_plotting, message=FALSE, warning=FALSE, include=FALSE}
 # Make plots
 list[p_coup_rel_useful, 
      p_coup_rel_confidence, 
