@@ -46,59 +46,104 @@ sum_ordinal <- function(pred) {
 }
 
 plot_rating_ID <- function(model,
-                                col,
-                                label,
-                                measures = c("coup_relevance_s", "coup_attitude_s", 
-                                               "affect_s", "motivation_s"),
-                                quadratic = c("coup_attitude_s")) {
+                           col,
+                           label,
+                           measures = c("coup_relevance_s",
+                                        "coup_attitude_s",
+                                        "affect_s",
+                                        "motivation_s"),
+                           quadratic = c("coup_attitude_s"),
+                           nbins = 8) {
+  # Prepare values for group mean prediction ----
+  plot_dat_line <- rbindlist(lapply(unique(model$data$block),
+                                    function(x)
+                                      data.table(col = plot_seq(model$data[col][model$data$block == x,]),
+                                                 block = x)))
   
-  # Prepare values for prediction
-  plot_dat <- rbindlist(lapply(unique(model$data$block),
-                               function(x)
-                                 data.table(col = plot_seq(model$data[col][model$data$block == x, ]),
-                                            block = x)))
-  
-  colnames(plot_dat) <- c(col, "block")
+  colnames(plot_dat_line) <- c(col, "block")
   
   # Set all additional predictors to median
-  plot_dat[, wait_s := 0]
-  
   other_measures <- measures[measures != col]
-  plot_dat[, (other_measures) := lapply(other_measures, function(x)
+  plot_dat_line[, (other_measures) := lapply(other_measures, function(x)
     median(model$data[x][[1]]))]
   
+  # Compute quadratics
   if (!is.null(quadratic)) {
     lapply(quadratic, function(x) {
-      plot_dat[, paste0("I(", x, ")^2") := .(get(x) ^ 2)]
+      plot_dat_line[, paste0("I(", x, ")^2") := .(get(x) ^ 2)]
     })
   }
   
+  # Prepare values for participant-wise prediciton ----
+  plot_dat_Ps <- unique(as.data.table(model$data)[, c("PID", "block", measures), with = F])
+  
+  # Compute quadratics
+  if (!is.null(quadratic)) {
+    lapply(quadratic, function(x) {
+      plot_dat_Ps[, paste0("I(", x, ")^2") := .(get(x) ^ 2)]
+    })
+  }
   
   plot_pred <- function(resp,
-                        resp_label){
+                        resp_label) {
+    print(paste0("Plotting ", resp_label, " by ", label))
+    # Predict for group mean ----
     # Predict - this returns ndraws x npoints x 5
-    pred <- fitted(
+    print("Predicting population effect")
+    pred_line <- fitted(
       model,
-      newdata = plot_dat,
+      newdata = plot_dat_line,
       re_formula = NA,
       summary = F,
       resp = resp
     )
     
     # Summarize into mean raiting
-    pred <- sum_ordinal(pred)
+    pred_line <- sum_ordinal(pred_line)
     
     # Combine with predictors
-    pred <- cbind(plot_dat, pred)
+    pred_line <- cbind(plot_dat_line, pred_line)
     
     # Prepare variables
-    pred[, block := factor(block,
-                           levels = block_levels,
-                           labels = block_labels)]
-    pred[, x := get(col)]
+    pred_line[, block := factor(block,
+                                levels = block_levels,
+                                labels = block_labels)]
+    pred_line[, x := get(col)]
     
+    # Predict for participants ----
+    # Predict - this returns ndraws x npoints x 5
+    print("Predicting participant-wise effect")
+    pred_Ps <- fitted(
+      model,
+      newdata = plot_dat_Ps,
+      re_formula = ~ (1 + block | PID),
+      summary = F,
+      resp = resp
+    )
     
-    p <- ggplot(pred, aes(
+    # Summarize into mean raiting
+    pred_Ps <- sum_ordinal(pred_Ps)
+    
+    # Combine with predictors
+    pred_Ps <- cbind(plot_dat_Ps, pred_Ps)
+    
+    # Bin and summarize
+    pred_Ps[, bin_n := factor(dplyr::ntile(get(col), nbins))]
+    pred_Ps[, bin := mean(get(col)), by = bin_n]
+    pred_Ps[, prec := 1 / sd]
+    pred_Ps_sum <-
+      pred_Ps[, .(m = wtd.mean(m, weights = prec, normwt = T),
+                  se = sqrt(wtd.var(
+                    m, weights = prec, normwt = T
+                  )
+                  / .N)),
+              by = c("bin", "block")]
+    pred_Ps_sum[, block := factor(block,
+                                  levels = block_levels,
+                                  labels = block_labels)]
+    
+    print("Plotting")
+    p <- ggplot(pred_line, aes(
       x = x,
       y = m,
       fill = block,
@@ -118,12 +163,26 @@ plot_rating_ID <- function(model,
                          values = block_colors) +
       scale_linetype_manual(breaks = block_labels,
                             values = block_lines) +
-      theme(legend.position = "none")
+      theme(legend.position = "none") +
+      geom_pointrange(
+        data = pred_Ps_sum,
+        aes(
+          x = bin,
+          y = m,
+          ymin = m - se,
+          ymax = m + se,
+          color = block
+        ),
+        alpha = 0.3
+      )
     
     p <- getGeoms(p,
-                  pred,
+                  pred_line,
                   col = "block",
                   fill_legend = T)
+    
+    # This might help with memory usage
+    gc()
     
     return(p)
     
@@ -133,14 +192,10 @@ plot_rating_ID <- function(model,
                         "Expected answer affect")
   
   p_confidence <- plot_pred("confidence",
-                        "Confidence")
+                            "Confidence")
   
   p_useful <- plot_pred("useful",
                         "Expected ansewr usefulness")
-
-  
-  # This might help with memory usage
-  gc()
   
   return(list(p_useful, p_confidence, p_affect))
 }

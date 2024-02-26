@@ -108,6 +108,7 @@ uub <- function(x)
 sum_draws <- function(x)
   data.table(
     m = apply(x, 2, median),
+    sd = apply(x, 2, sd),
     llb = apply(x, 2, llb),
     lb = apply(x, 2, lb),
     ub = apply(x, 2, ub),
