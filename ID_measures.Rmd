@@ -139,25 +139,30 @@ plot_rating_ID <- function(model,
                         "Expected ansewr usefulness")
 
   
-  l <- get_legend(p_affect + theme(
-    legend.position = "top",
-    legend.justification = "center"
+  # This might help with memory usage
+  gc()
+  
+  return(list(p_useful, p_confidence, p_affect))
+}
+
+plot_rating_grid <- function(...){
+  
+  plots_list <- list(...)
+    
+  l <- get_legend(plots_list[[1]] + theme(
+      legend.position = "top",
+      legend.justification = "center"
   ))
   
   p <- plot_grid(
     l,
     plot_grid(
-      p_useful,
-      p_confidence,
-      p_affect,
+      plotlist = plots_list,
       nrow = 1
     ),
     ncol = 1,
     rel_heights = c(.1, 1)
   )
-  
-  # This might help with memory usage
-  gc()
   
   return(p)
 }
@@ -175,6 +180,55 @@ quest_text[, question := gsub('""""', '"', question)]
 set.seed(0)
 ```
 
+```{r ID_rating_plotting}
+# Make plots
+list[p_coup_rel_useful, 
+     p_coup_rel_confidence, 
+     p_coup_rel_affect] <- plot_rating_ID(rmm1, "coup_relevance_s", 
+                                          "Coup relevance (std.)")
+list[p_coup_att_useful, 
+     p_coup_att_confidence, 
+     p_coup_att_affect] <- plot_rating_ID(rmm1, "coup_attitude_s", 
+                                          "Coup attitude (std.)")
+
+list[p_aff_useful, 
+     p_aff_confidence, 
+     p_aff_affect] <- plot_rating_ID(rmm1, "affect_s", "Mood (std.)")
+
+list[p_mot_useful, 
+     p_mot_confidence, 
+     p_mot_affect] <- plot_rating_ID(rmm1, "motivation_s", 
+                                          "Motivational activation\n(std.)")
+
+# Set common y limits
+list[p_coup_rel_useful,
+     p_coup_att_useful,
+     p_aff_useful,
+     p_mot_useful] <-
+  set_common_y_limits(p_coup_rel_useful,
+                      p_coup_att_useful,
+                      p_aff_useful,
+                      p_mot_useful)
+
+list[p_coup_rel_confidence,
+     p_coup_att_confidence,
+     p_aff_confidence,
+     p_mot_confidence] <-
+  set_common_y_limits(p_coup_rel_confidence,
+                      p_coup_att_confidence,
+                      p_aff_confidence,
+                      p_mot_confidence)
+
+list[p_coup_rel_affect,
+     p_coup_att_affect,
+     p_aff_affect,
+     p_mot_affect] <-
+  set_common_y_limits(p_coup_rel_affect,
+                      p_coup_att_affect,
+                      p_aff_affect,
+                      p_mot_affect)
+```
+
 ## Model
 TK TK TK
 
@@ -182,20 +236,29 @@ TK TK TK
 
 ## Coup Relevance
 ```{r coup_relevance}
-plot_rating_ID(rmm1, "coup_relevance_s", "Coup relevance (std.)")
+plot_rating_grid(p_coup_rel_useful,
+                 p_coup_rel_confidence,
+                 p_coup_rel_affect)
 ```
 
 ## Coup Attitude
 ```{r coup_attitude}
-plot_rating_ID(rmm1, "coup_attitude_s", "Coup attitude (std.)")
+plot_rating_grid(p_coup_att_useful, 
+     p_coup_att_confidence, 
+     p_coup_att_affect
+)
 ```
 
 ## Mood
 ```{r affect}
-plot_rating_ID(rmm1, "affect_s", "Mood (std.)")
+plot_rating_grid(p_aff_useful,
+                 p_aff_confidence,
+                 p_aff_affect)
 ```
 
 ## Motivational activation
 ```{r motivation}
-plot_rating_ID(rmm1, "motivation_s", "Motivational activation\n(std.)")
+plot_rating_grid(p_mot_useful,
+                 p_mot_confidence,
+                 p_mot_affect)
 ```
