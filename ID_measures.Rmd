@@ -205,6 +205,102 @@ plot_rating_grid <- function(...){
   return(p)
 }
 
+plot_rating_ID_by_q <- function(model,
+                                col,
+                                label,
+                                resp,
+                                resp_label,
+                                measures = c("coup_relevance_s",
+                                             "coup_attitude_s",
+                                             "affect_s",
+                                             "motivation_s"),
+                                quadratic = c("coup_attitude_s")) {
+  
+  # Prepare values for group mean prediction ----
+  plot_dat <- as.data.table(
+    expand.grid(
+      col = plot_seq(model$data[col]),
+      questionId = unique(model$data$questionId)
+    )
+  )
+  
+  colnames(plot_dat) <- c(col, "questionId")
+  
+  plot_dat <- merge(plot_dat, 
+                    unique(as.data.table(model$data)[, .(questionId, block)]))
+  
+
+  # Set all additional predictors to median
+  other_measures <- measures[measures != col]
+  plot_dat[, (other_measures) := lapply(other_measures, function(x)
+    median(model$data[x][[1]]))]
+  
+  # Compute quadratics
+  if (!is.null(quadratic)) {
+    lapply(quadratic, function(x) {
+      plot_dat[, paste0("I(", x, ")^2") := .(get(x) ^ 2)]
+    })
+  }
+  
+  # Predict - this returns ndraws x npoints x 5
+  pred_line <- fitted(
+    model,
+    newdata = plot_dat,
+    re_formula = as.formula(paste0("~ (1 + ", col, " | questionId)")),
+    summary = F,
+    resp = resp,
+    draw_ids = sample(1:4000, n_draws)
+  )
+    
+  # Summarize into mean raiting
+  pred_line <- sum_ordinal(pred_line)
+  
+  # Combine with predictors
+  pred_line <- cbind(plot_dat, pred_line)
+    
+  # Prepare variables
+  pred_line[, x := get(col)]
+  
+  # Add question text
+  pred_line <- merge(pred_line, quest_text, by = "questionId", all.x = T)
+  
+  # Block labels
+  pred_line[, block := factor(block,
+                              levels = block_levels,
+                              labels = block_labels)]
+    
+  d <- highlight_key(pred_line, ~questionId)
+    
+  p <- ggplot(d, aes(
+    x = x,
+    y = m,
+    group = questionId,
+    text = question,
+    color = block
+  )) +
+    geom_line(linewidth = 0.3) +
+    facet_wrap("block") +
+    labs(
+      x = label,
+      y = resp_label,
+    ) +
+    scale_x_continuous(expand = expansion(mult = c(0, 0))) +
+    scale_color_manual(breaks = block_labels,
+                         values = block_colors) +
+      scale_linetype_manual(breaks = block_labels,
+                            values = block_lines) +
+    theme(legend.position = "none")
+  
+  p <- ggplotly(p,
+                tooltip = "text") %>%
+    highlight(on = "plotly_hover", off = "plotly_deselect")
+
+  # This might help with memory usage
+  gc()
+  
+  return(p)
+}
+
 rmm1 <- brm(file = file.path(savedModelsDir, rating_model))
 
 sampleName <- "v1.01"
@@ -213,6 +309,8 @@ list[wait, rating_clps, know_test,
      prob_judge, quest, quality] = load_exclude(sampleName)
 
 quest_text <- unique(wait[, .(questionId, question)])
+quest_text[, question := trimws(question)]
+quest_text <- unique(quest_text[, .(questionId, question)])
 quest_text[, question := gsub('""""', '"', question)]
 
 set.seed(0)
@@ -273,7 +371,7 @@ The first part of this presentation contains plots with the outcome of a model p
 
 mv(useful, confidence, affect) ~ `r as.character(rmm1$formula[[1]]$confidence[[1]])[[3]]`
 
-## Coup Relevance
+## Average ratings by coup relevance
 ```{r coup_relevance}
 plot_rating_grid(p_coup_rel_useful,
                  p_coup_rel_confidence,
@@ -282,7 +380,7 @@ plot_rating_grid(p_coup_rel_useful,
 
 Lines are predictions from model, points denote raw means+-SE.
 
-## Coup Attitude
+## Average ratings by coup attitude
 ```{r coup_attitude}
 plot_rating_grid(p_coup_att_useful, 
      p_coup_att_confidence, 
@@ -294,7 +392,7 @@ Lines are predictions from model, points denote raw means+-SE.
 Seems like the polynomial does a decent job of capturing the shape here.
 
 
-## Mood
+## Average ratings by mood
 (STAI + Gallup wellbeing)
 
 ```{r affect}
@@ -306,7 +404,7 @@ plot_rating_grid(p_aff_useful,
 Lines are predictions from model, points denote raw means+-SE.
 
 
-## Motivational activation
+## Average ratings by motivaitonal activation
 (Apathy questionnaire + Regulatory Mode)
 
 ```{r motivation}
@@ -316,3 +414,39 @@ plot_rating_grid(p_mot_useful,
 ```
 
 Lines are predictions from model, points denote raw means+-SE.
+
+### Coup attitude changes the content deemed useful
+
+```{r coup_rel_by_q}
+plot_rating_ID_by_q(rmm1,
+                    "coup_attitude_s",
+                    "Coup attitude (std.)",
+                    "useful",
+                    "Expected usefulness")
+```
+
+Each line is a question. Hover over the line to read the question text.
+
+### Confidence about the different answers changes with coup attitude
+
+```{r coup_rel_by_q}
+plot_rating_ID_by_q(rmm1,
+                    "coup_attitude_s",
+                    "Coup attitude (std.)",
+                    "confidence",
+                    "Confidence")
+```
+
+Each line is a question. Hover over the line to read the question text.
+
+### Coup attitude changes the expected affective response to each answer
+
+```{r coup_rel_by_q}
+plot_rating_ID_by_q(rmm1,
+                    "coup_attitude_s",
+                    "Coup attitude (std.)",
+                    "affect",
+                    "Expected affect")
+```
+
+Each line is a question. Hover over the line to read the question text.
