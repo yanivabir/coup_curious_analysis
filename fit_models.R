@@ -6,6 +6,7 @@ setDTthreads(11)
 library(ggplot2)
 library(brms)
 source("ginsburg.R")
+source("utils.R")
 
 # Parameters
 sampleName <- "v1.01"
@@ -339,5 +340,136 @@ jobid <- launch_model(data = rating_clps_ID_ff,
 
 (rmm1 <- fetch_results(
   model_name = "rmm1",
+  project = "coup",
+))
+
+
+# Psuedo mediation model ----
+# Prepare data
+wait_med_ff <- add_ID(wait, naive_ID)
+
+wait_med_ff <- wait_med_ff[!is.na(coup_relevance_s)]
+
+# Make predictions from rmm1
+wait_med_ff[, `I(coup_attitude_s^2)` := coup_attitude_s ^2]
+
+n_draws <- 300
+set.seed(0)
+
+pred_ff_file <- file.path(savedModelsDir,
+                          "rmm1_fitted.rda")
+
+if (!file.exists(pred_ff_file)) {
+  # Predict usefulness
+  use_ff <- fitted(
+    rmm1,
+    newdata = wait_med_ff,
+    re_formula = ~ (1 + block | p | PID) + 
+      (1 + coup_relevance_s + coup_attitude_s + affect_s + motivation_s +
+         I(coup_attitude_s^2) | q | questionId),
+    resp = "useful",
+    scale = "linear",
+    summary = F,
+    draw_ids = sample(1:4000, n_draws)
+  )
+  
+  # Scale each draw and sum
+  use_ff <- t(apply(use_ff, 1, scale))
+  use_ff <- sum_draws(use_ff)
+  
+  # Predict confidence
+  conf_ff <- fitted(
+    rmm1,
+    newdata = wait_med_ff,
+    re_formula = ~ (1 + block | p | PID) + 
+      (1 + coup_relevance_s + coup_attitude_s + affect_s + motivation_s +
+         I(coup_attitude_s^2) | q | questionId),
+    scale = "linear",
+    summary = F,
+    resp = "confidence",
+    draw_ids = sample(1:4000, n_draws)
+  )
+  
+  # Scale each draw and sum
+  conf_ff <- t(apply(conf_ff, 1, scale))
+  conf_ff <- sum_draws(conf_ff)
+
+  # Predict affect
+  affect_ff <- fitted(
+    rmm1,
+    newdata = wait_med_ff,
+    re_formula = ~ (1 + block | p | PID) + 
+      (1 + coup_relevance_s + coup_attitude_s + affect_s + motivation_s +
+         I(coup_attitude_s^2) | q | questionId),
+    scale = "linear",
+    summary = F,
+    resp = "affect",
+    draw_ids = sample(1:4000, n_draws)
+  )
+  
+  # Scale each draw and sum
+  affect_ff <- t(apply(affect_ff, 1, scale))
+  affect_ff <- sum_draws(affect_ff)
+
+  save(use_ff, conf_ff, affect_ff, file = pred_ff_file)
+} else {
+  load(pred_ff_file)
+}
+
+# Merge into data.table for fit
+wait_med_ff <- cbind(wait_med_ff,
+                     as.data.table(use_ff)[, .(useful = m,
+                                useful_sd = sd)])
+
+wait_med_ff <- cbind(wait_med_ff,
+                     as.data.table(conf_ff)[, .(confidence = m,
+                                 confidence_sd = sd)])
+wait_med_ff <- cbind(wait_med_ff,
+                     as.data.table(affect_ff)[, .(affect = m,
+                                affect_sd = sd)])
+
+
+jobid_chpm1 <- launch_model(data = wait_med_ff,
+                            formula = 'bf(choice ~ 1 + wait_s + 
+                      block * coup_relevance_s + block * coup_attitude_s +
+                      block * affect_s + block * motivation_s +
+                      block * I(coup_attitude_s^2) +
+                      block * confidence + 
+                      block * affect + 
+                      block * useful +
+                      block * I(confidence^2) +
+                      block * I(affect^2) +
+                      (1 + wait_s +
+                      block * confidence + 
+                      block * affect + 
+                      block * useful +
+                      block * I(confidence^2) +
+                      block * I(affect^2) | PID) +
+                      (1 + wait_s +
+                      block * coup_relevance_s + block * coup_attitude_s +
+                      block * affect_s + block * motivation_s +
+                      block * I(coup_attitude_s^2) | questionId))
+                       + categorical(refcat = "skip")',
+                            prior = str_glue('prior(normal(0,1), class = "b", dpar = "muknow") +
+                        prior(normal(0,1), class = "b", dpar = "muwait") +
+                        prior(normal(0,1), class = "Intercept", dpar = "muknow") +
+                        prior(normal(0,1), class = "Intercept", dpar = "muwait") +
+                        prior(normal(0,1), class = "sd", dpar = "muknow") +
+                        prior(normal(0,1), class = "sd", dpar = "muwait") +
+                        prior(lkj(2), class = "cor")'),
+                            model_name = "chpm1",
+                            save_output = T,
+                            iter = 4000,
+                            warmup = 3000,
+                            chains = 4,
+                            seed = 1,
+                            cores = 32,
+                            wall_time = "0-30:00",
+                            project = "coup",
+                            force = T)
+
+
+(chpm1 <- fetch_results(
+  model_name = "chpm1",
   project = "coup",
 ))
