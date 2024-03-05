@@ -400,12 +400,6 @@ quest[, coup_rel_20 := 4 - coup_rel_20] # No reform no Jewish state
 quest[, coup_rel_21 := 4 - coup_rel_21] # I support reform
 quest[, coup_rel_23 := 4 - coup_rel_23] # I support reform relative to two weeks ago
 
-# Coup regulatory focus - higher is promotion
-quest[, coup_reg_focus_06 := 4 - coup_reg_focus_06] # Prevent harm to state
-quest[, coup_reg_focus_05 := 4 - coup_reg_focus_05] # My duty
-quest[, coup_reg_focus_08 := 4 - coup_reg_focus_08] # Conserve character
-quest[, coup_reg_focus_07 := 4- coup_reg_focus_07] # Damage control
-
 # Add midgam data ----
 midgam[, firstSession := min(startTime), by = userId]
 midgam <- midgam[startTime == firstSession]
