@@ -114,3 +114,30 @@ sum_draws <- function(x)
     ub = apply(x, 2, ub),
     uub = apply(x, 2, uub)
   )
+
+sum_ordinal <- function(pred) {
+  pred_mult <- apply(pred, c(1, 2), function(x) sum((1:5) * x))
+  pred_sum <- sum_draws(pred_mult)
+}
+
+sum_cat <- function(pred) {
+  assert("Skip, wait, know not in the expected order",
+         sum(names(pred[1, 1, ]) == c("skip", "wait", "know")) == 3)
+  
+  # Calculate wait vs. skip
+  pred_wait <- pred[, , 2] / (pred[, , 1] + pred[, , 2])
+  
+  assert("operation wasn't elementwise",
+         pred_wait[1, 1] == (pred[1, 1, 2] / (pred[1, 1, 1] + pred[1, 1, 2])))
+  
+  # Summarize over draws
+  pred_wait <- sum_draws(pred_wait)
+  
+  # Calculate know vs. skip
+  pred_know <- pred[, , 3] / (pred[, , 1] + pred[, , 3])
+  
+  # Summarize over draws
+  pred_know <- sum_draws(pred_know)
+  
+  return(list(pred_wait, pred_know))
+}

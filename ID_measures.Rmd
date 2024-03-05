@@ -28,6 +28,7 @@ library(brms)
 library(gsubfn)
 library(plotly)
 source("utils.R")
+source("ID_measures_func.R")
 
 
 savedModelsDir <- file.path("..", "saved_models")
@@ -41,265 +42,6 @@ block_colors <- c("#cc1337", "#005b8d")
 block_labels <- c("Coup-related", "General")
 block_levels <- c("coup", "general")
 block_lines <- c("solid", "dashed")
-
-sum_ordinal <- function(pred) {
-  pred_mult <- apply(pred, c(1, 2), function(x) sum((1:5) * x))
-  pred_sum <- sum_draws(pred_mult)
-}
-
-plot_rating_ID <- function(model,
-                           col,
-                           label,
-                           measures = c("coup_relevance_s",
-                                        "coup_attitude_s",
-                                        "affect_s",
-                                        "motivation_s"),
-                           quadratic = c("coup_attitude_s"),
-                           nbins = 8) {
-  # Prepare values for group mean prediction ----
-  plot_dat_line <- rbindlist(lapply(unique(model$data$block),
-                                    function(x)
-                                      data.table(col = plot_seq(model$data[col][model$data$block == x,]),
-                                                 block = x)))
-  
-  colnames(plot_dat_line) <- c(col, "block")
-  
-  # Set all additional predictors to median
-  other_measures <- measures[measures != col]
-  plot_dat_line[, (other_measures) := lapply(other_measures, function(x)
-    median(model$data[x][[1]]))]
-  
-  # Compute quadratics
-  if (!is.null(quadratic)) {
-    lapply(quadratic, function(x) {
-      plot_dat_line[, paste0("I(", x, ")^2") := .(get(x) ^ 2)]
-    })
-  }
-  
-  plot_pred <- function(resp,
-                        resp_label) {
-    print(paste0("Plotting ", resp_label, " by ", label))
-    # Predict for group mean ----
-    # Predict - this returns ndraws x npoints x 5
-    print("Predicting population effect")
-    pred_line <- fitted(
-      model,
-      newdata = plot_dat_line,
-      re_formula = NA,
-      summary = F,
-      resp = resp
-    )
-    
-    # Summarize into mean raiting
-    pred_line <- sum_ordinal(pred_line)
-    
-    # Combine with predictors
-    pred_line <- cbind(plot_dat_line, pred_line)
-    
-    # Prepare variables
-    pred_line[, block := factor(block,
-                                levels = block_levels,
-                                labels = block_labels)]
-    pred_line[, x := get(col)]
-    
-    # Predict for participants ----
-    print("Computing raws means")
-
-    # Bin and summarize
-    rm <- as.data.table(model$data)
-    rm <- rm[, .(m = mean(get(resp)),
-                 sd = sd(get(resp)),
-                 prec = 1 / sd(get(resp))), by = c("PID", "block", col)]
-    rm[, bin_n := factor(dplyr::ntile(get(col), nbins))]
-    rm[, bin := mean(get(col)), by = bin_n]
-    rm <- rm[prec < Inf]
-    rm_sum <-
-      rm[, .(m = Hmisc::wtd.mean(m, weights = prec, normwt = T),
-                  se = sqrt(Hmisc::wtd.var(
-                    m, weights = prec, normwt = T
-                  )
-                  / .N)),
-              by = c("bin", "block")]
-    rm_sum[, block := factor(block,
-                             levels = block_levels,
-                             labels = block_labels)]
-    
-    print("Plotting")
-    p <- ggplot(pred_line, aes(
-      x = x,
-      y = m,
-      fill = block,
-      color = block
-    )) +
-      labs(
-        x = label,
-        y = resp_label,
-        color = "Block",
-        fill = "Block",
-        linetype = "Block"
-      ) +
-      scale_x_continuous(expand = expansion(mult = c(0, 0))) +
-      scale_fill_manual(breaks = block_labels,
-                        values = block_colors) +
-      scale_color_manual(breaks = block_labels,
-                         values = block_colors) +
-      scale_linetype_manual(breaks = block_labels,
-                            values = block_lines) +
-      theme(legend.position = "none") +
-      geom_pointrange(
-        data = rm_sum,
-        aes(
-          x = bin,
-          y = m,
-          ymin = m - se,
-          ymax = m + se,
-          color = block
-        ),
-        alpha = 0.3,
-        show.legend = F
-      )
-    
-    p <- getGeoms(p,
-                  pred_line,
-                  col = "block",
-                  fill_legend = T)
-    
-    # This might help with memory usage
-    gc()
-    
-    return(p)
-    
-  }
-  
-  p_affect <- plot_pred("affect",
-                        "Expected answer affect")
-  
-  p_confidence <- plot_pred("confidence",
-                            "Confidence")
-  
-  p_useful <- plot_pred("useful",
-                        "Expected ansewr usefulness")
-  
-  return(list(p_useful, p_confidence, p_affect))
-}
-
-plot_rating_grid <- function(...){
-  
-  plots_list <- list(...)
-    
-  l <- get_legend(plots_list[[1]] + theme(
-      legend.position = "top",
-      legend.justification = "center"
-  ))
-  
-  p <- plot_grid(
-    l,
-    plot_grid(
-      plotlist = plots_list,
-      nrow = 1
-    ),
-    ncol = 1,
-    rel_heights = c(.1, 1)
-  )
-  
-  return(p)
-}
-
-plot_rating_ID_by_q <- function(model,
-                                col,
-                                label,
-                                resp,
-                                resp_label,
-                                measures = c("coup_relevance_s",
-                                             "coup_attitude_s",
-                                             "affect_s",
-                                             "motivation_s"),
-                                quadratic = c("coup_attitude_s")) {
-  
-  # Prepare values for group mean prediction ----
-  plot_dat <- as.data.table(
-    expand.grid(
-      col = plot_seq(model$data[col]),
-      questionId = unique(model$data$questionId)
-    )
-  )
-  
-  colnames(plot_dat) <- c(col, "questionId")
-  
-  plot_dat <- merge(plot_dat, 
-                    unique(as.data.table(model$data)[, .(questionId, block)]))
-  
-
-  # Set all additional predictors to median
-  other_measures <- measures[measures != col]
-  plot_dat[, (other_measures) := lapply(other_measures, function(x)
-    median(model$data[x][[1]]))]
-  
-  # Compute quadratics
-  if (!is.null(quadratic)) {
-    lapply(quadratic, function(x) {
-      plot_dat[, paste0("I(", x, ")^2") := .(get(x) ^ 2)]
-    })
-  }
-  
-  # Predict - this returns ndraws x npoints x 5
-  pred_line <- fitted(
-    model,
-    newdata = plot_dat,
-    re_formula = as.formula(paste0("~ (1 + ", col, " | questionId)")),
-    summary = F,
-    resp = resp,
-    draw_ids = sample(1:4000, n_draws)
-  )
-    
-  # Summarize into mean raiting
-  pred_line <- sum_ordinal(pred_line)
-  
-  # Combine with predictors
-  pred_line <- cbind(plot_dat, pred_line)
-    
-  # Prepare variables
-  pred_line[, x := get(col)]
-  
-  # Add question text
-  pred_line <- merge(pred_line, quest_text, by = "questionId", all.x = T)
-  
-  # Block labels
-  pred_line[, block := factor(block,
-                              levels = block_levels,
-                              labels = block_labels)]
-    
-  d <- highlight_key(pred_line, ~questionId)
-    
-  p <- ggplot(d, aes(
-    x = x,
-    y = m,
-    group = questionId,
-    text = question,
-    color = block
-  )) +
-    geom_line(linewidth = 0.3) +
-    facet_wrap("block") +
-    labs(
-      x = label,
-      y = resp_label,
-    ) +
-    scale_x_continuous(expand = expansion(mult = c(0, 0))) +
-    scale_color_manual(breaks = block_labels,
-                         values = block_colors) +
-      scale_linetype_manual(breaks = block_labels,
-                            values = block_lines) +
-    theme(legend.position = "none")
-  
-  p <- ggplotly(p,
-                tooltip = "text") %>%
-    highlight(on = "plotly_hover", off = "plotly_deselect")
-
-  # This might help with memory usage
-  gc()
-  
-  return(p)
-}
 
 rmm1 <- brm(file = file.path(savedModelsDir, rating_model))
 
@@ -415,9 +157,9 @@ plot_rating_grid(p_mot_useful,
 
 Lines are predictions from model, points denote raw means+-SE.
 
-### Coup attitude changes the content deemed useful
+## Coup attitude changes the content deemed useful
 
-```{r coup_rel_by_q}
+```{r use_coup_rel_by_q}
 plot_rating_ID_by_q(rmm1,
                     "coup_attitude_s",
                     "Coup attitude (std.)",
@@ -427,9 +169,23 @@ plot_rating_ID_by_q(rmm1,
 
 Each line is a question. Hover over the line to read the question text.
 
-### Confidence about the different answers changes with coup attitude
+## Another way of illustrating the same point
+```{r use_coup_rel_by_q_heatmap}
+plot_rating_ID_by_q(rmm1,
+                    "coup_attitude_s",
+                    "Coup attitude (std.)",
+                    "useful",
+                    "Expected usefulness",
+                    type = "heatmap")
 
-```{r coup_rel_by_q}
+```
+
+This might be better for a non-interactive plot? The point of the plot is that Coup Attitude changes the content of information deemed useful. This is the directing effect of motivation in fine scale.
+
+
+## Confidence about the different answers changes with coup attitude
+
+```{r conf_coup_rel_by_q}
 plot_rating_ID_by_q(rmm1,
                     "coup_attitude_s",
                     "Coup attitude (std.)",
@@ -439,9 +195,9 @@ plot_rating_ID_by_q(rmm1,
 
 Each line is a question. Hover over the line to read the question text.
 
-### Coup attitude changes the expected affective response to each answer
+## Coup attitude changes the expected affective response to each answer
 
-```{r coup_rel_by_q}
+```{r aff_coup_rel_by_q}
 plot_rating_ID_by_q(rmm1,
                     "coup_attitude_s",
                     "Coup attitude (std.)",
@@ -450,3 +206,65 @@ plot_rating_ID_by_q(rmm1,
 ```
 
 Each line is a question. Hover over the line to read the question text.
+
+```{r plot_choice_effects, message=FALSE, warning=FALSE, include=FALSE}
+rm(rmm1)
+chmq1 <- brm(file = file.path(savedModelsDir, "chmq1"))
+
+# Make predictions and create plots
+list[p_rel_wait, p_rel_know] <- plot_choice_ID(chmq1,
+                                               "coup_relevance_s",
+                                               "Coup relevance")
+
+list[p_att_wait, p_att_know] <- plot_choice_ID(chmq1,
+                                               "coup_attitude_s",
+                                               "Coup attitude")
+
+list[p_aff_wait, p_aff_know] <- plot_choice_ID(chmq1,
+                                               "affect_s",
+                                               "Mood")
+
+list[p_mot_wait, p_mot_know] <- plot_choice_ID(chmq1,
+                                               "motivation_s",
+                                               "Motivation")
+
+# Set common y limits across same response
+# list[p_rel_wait,
+#      p_att_wait,
+#      p_aff_wait,
+#      p_mot_wait] <-
+#   set_common_y_limits(p_rel_wait,
+#                       p_att_wait,
+#                       p_aff_wait,
+#                       p_mot_wait)
+# 
+# list[p_rel_know,
+#      p_att_know,
+#      p_aff_know,
+#      p_mot_know] <-
+#   set_common_y_limits(p_rel_know,
+#                       p_att_know,
+#                       p_aff_know,
+#                       p_mot_know)
+
+```
+
+## Effects of coup relevance on Choice
+```{r choice_coup_relevance}
+plot_rating_grid(p_rel_wait, p_rel_know)
+```
+
+## Effects of coup attitude on Choice
+```{r choice_coup_attitude}
+plot_rating_grid(p_att_wait, p_att_know)
+```
+
+## Effects of mood on Choice
+```{r choice_mood}
+plot_rating_grid(p_aff_wait, p_aff_know)
+```
+
+## Effects of motivation on Choice
+```{r choice_motivation}
+plot_rating_grid(p_mot_wait, p_mot_know)
+```
