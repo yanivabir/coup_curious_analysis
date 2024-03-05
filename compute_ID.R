@@ -103,13 +103,47 @@ computeNaive <- function(quest){
                                            rowMeans(.SD, na.rm = T)), 
                              by = "PID"]
   
+  ## Compute coup regulatory focus
+  # Select items
+  reg_focus_items <- 
+    quest[, grepl("PID|coup_reg", names(quest)), with = F]
+  
+  # Remove NAs
+  reg_focus_items <- 
+    reg_focus_items[rowSums(is.na(reg_focus_items[, .SD, .SDcols = -"PID"])) < 
+                      ncol(reg_focus_items) - 1]
+  
+  
+  # Standardize each variable
+  cols = colnames(reg_focus_items[, -c("PID")])
+  reg_focus_items[, (cols) := lapply(.SD, scale), .SDcols=cols]
+  
+  prevention <- colnames(reg_focus_items)[6:9]
+  promotion <- colnames(reg_focus_items)[2:5]
+  
+  # Compute alpha
+  alphas <- rbind(alphas, suppressWarnings(computeAlpha(reg_focus_items[, promotion, with = F], 
+                                                        "naive_coup_reg_promote")))
+  
+  alphas <- rbind(alphas, suppressWarnings(computeAlpha(reg_focus_items[, prevention, with = F], 
+                                                        "naive_coup_reg_prevent")))
+  
+  
+  # Compute average
+  coup_reg_focus <- reg_focus_items[, 
+                                    .(naive_prevention = rowMeans(.SD[, prevention, with = F], na.rm = T),
+                                      naive_promotion = rowMeans(.SD[, promotion, with = F], na.rm = T)), 
+                                    by = "PID"]
+  
+  
   ## Merge all
   naive_ID <- merge(coup_rel, affect, by = "PID")
   naive_ID <- merge(naive_ID, motivation, by = "PID")
+  naive_ID <- merge(naive_ID, coup_reg_focus, by = "PID", all.x = T)
   
   assert("wrong number of participants in coup_rel", 
          nrow(naive_ID) == nrow(quest))
-  assert("wrong number of columns in coup_rel", ncol(naive_ID) == 6)
+  assert("wrong number of columns in coup_rel", ncol(naive_ID) == 8)
   
   return(list(naive_ID, alphas))
 }

@@ -1,0 +1,77 @@
+---
+title: "Validating measures of individual differences"
+output: ioslides_presentation
+date: "2024-02-28"
+---
+
+```{r setup, include = F}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+# Load libraries
+library(data.table)
+setDTthreads(11)
+library(ggplot2)
+library(stringr)
+library(cowplot)
+theme_set(theme_minimal()  +
+            theme_cowplot(14, font_family = "Helvetica", rel_small = 0.8) + 
+            theme(legend.position = "none",
+                  strip.text = element_text(size = 9),
+                  plot.margin = margin(1.5,2,1.5,2)))
+
+
+sampleName <- "v1.01"
+
+source("load_data_and_exclude.R")
+list[wait, rating_clps, know_test, 
+     prob_judge, quest, quality] = load_exclude(sampleName)
+
+source("compute_ID.R")
+list[naive_ID, alphas] <- computeNaive(quest)
+
+# Coup relevance key
+coup_rel_key <- fread(file.path("..", "data", "coup_rel_key.csv"))
+
+# Function to compute standard errors
+se <- function(x) sd(x, na.rm = T) / sqrt(sum(!is.na(x)))
+
+# Colors, lines labels
+block_colors <- c("#cc1337", "#005b8d")
+block_labels <- c("Coup-related", "General")
+levs <- c("coup", "general")
+block_lines <- c("solid", "dashed")
+
+```
+
+
+```{r coup_reg, fig.width=5, fig.height= 5}
+coup_reg_rel <- naive_ID[!is.na(naive_prevention)]
+coup_reg_rel[, reg_sum := scale(naive_prevention + naive_promotion)]
+coup_reg_rel[, reg_diff := scale(naive_promotion - naive_prevention)]
+
+coup_reg_rel <- melt(coup_reg_rel[, .(PID, naive_coup_relevance, 
+                                       naive_coup_attitude, naive_affect, 
+                                       naive_motivation,
+                                       reg_diff,
+                                       reg_sum)],
+                      id.vars = c("PID", "reg_diff", "reg_sum"),
+                     variable.name = "ID_var",
+                     value.name = "ID_value")
+
+coup_reg_rel <- melt(coup_reg_rel,
+                      id.vars = c("PID", "ID_var", "ID_value"),
+                     variable.name = "reg_var",
+                     value.name = "reg_value")
+
+ggplot(coup_reg_rel[ID_var %in% c("naive_coup_relevance",
+                                  "naive_coup_attitude")], 
+       aes(x = ID_value, y = reg_value)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F, color = 'blue') +
+  facet_grid(ID_var ~ reg_var)
+
+```
+
