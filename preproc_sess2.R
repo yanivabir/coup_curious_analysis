@@ -117,19 +117,55 @@ recall[, answer := gsub("<div class='answer'>|</div>", "", answer)]
 # Remove trailing spaces from recalls
 recall[, recall := trimws(recall)]
 
-# Score easy scores ----
+### Score easy scores ----
+score_easy <- function(dt, col) {
+  # Mark numeric answers
+  suppressWarnings(dt[!is.na(get(col)), is_number := !is.na(as.numeric(answer)), 
+                          by = .(PID, trial_index)])
+  
+  # Calculate string distance
+  dt[!is.na(get(col)), distance := adist(answer, get(col), fixed = F, 
+                                           ignore.case = T),
+         by = .(PID, trial_index)]
+  
+  # If numeric and exact match, or non numeric and dist < 1, mark as true
+  dt[(!is.na(get(col))) & ((is_number & (distance == 0)) |
+                               (!is_number & (distance < 2))), correct := T]
+  
+  return(dt)
+}
 
-# Mark numeric answers
-suppressWarnings(recall[!is.na(recall), is_number := !is.na(as.numeric(answer)), 
-       by = .(PID, trial_index)])
-
-# Calculate string distance
-recall[!is.na(recall), distance := adist(answer, recall, fixed = F, 
-                                         ignore.case = T),
-       by = .(PID, trial_index)]
-
-# If numeric and exact match, or non numeric and dist < 1, mark as true
-recall[(!is.na(recall)) & ((is_number & (distance == 0)) |
-                           (!is_number & (distance < 2))), correct := T]
+recall <- score_easy(recall, "recall")
 
 save(recall, file = file.path(preprocDatDir, "recall_data.rda"))
+
+## Preprocess question knowledge data ----
+# Parse text responses
+know_text <- data[category == "known_answer"]
+
+know_text[, know := fromJSON(gsub('""', '"', responses))$recall,
+            by = .(PID, trial_index)]
+
+# Gather forced choice responses
+know_yn <- data[category == "known_answer_yn"]
+know_yn[button_pressed == "0", choice := "yes"]
+know_yn[button_pressed == "1", choice := "no"]
+
+know <- merge(know_yn[, .(PID, sess, firstBlock, version, block, type, 
+                              trial_index, questionId, question, 
+                              answer, choice)], 
+                know_text[, .(PID, questionId, know)],
+                by = c("PID", "questionId"), all.x = T)[order(PID, trial_index)]
+assert("NAs in answer knowledge data", sum(is.na(know[choice == "yes"]$know)) == 0)
+
+# Remove html from stimuli
+know[, question := gsub("<div class='question'>|</div>", "", question)]
+know[, answer := gsub("<div class='answer'>|</div>", "", answer)]
+
+# Remove trailing spaces from recalls
+know[, know := trimws(know)]
+
+#Score easy scores
+know <- score_easy(know, "know")
+
+save(know, file = file.path(preprocDatDir, "answer_knowledge_data.rda"))
