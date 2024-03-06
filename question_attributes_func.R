@@ -4,7 +4,8 @@ plot_wait_know_attr <- function(model,
                                 attributes = c("useful", "confidence", "affect"),
                                 quadratic = T,
                                 combine = T,
-                                title = NULL) {
+                                title = NULL,
+                                plot_questions = T) {
   
   model_name <- deparse(substitute(model))
   
@@ -55,62 +56,70 @@ plot_wait_know_attr <- function(model,
   
   pred_wait <- cbind(plot_dat, pred_wait)
   
-  # Predict per question
-  qcoefs_data <- unique(as.data.table(model$data)[, .(questionId,
-                                                      block,
-                                                      confidence,
-                                                      useful,
-                                                      affect)], by = "questionId")
-  # Take residuals over other attributres
-  qcoefs_data[, (other_attr) := lapply(other_attr, function(x)
-    median(model$data[x][[1]]))]
-  qcoefs_data[, wait_s := 0]
-  
-  if (quadratic) {
-    qcoefs_data[, `I(confidence^2)` := confidence ^ 2]
-    qcoefs_data[, `I(affect^2)` := affect ^ 2]
-    qcoefs_data[, `I(useful^2)` := useful ^ 2]
+  if (plot_questions) {
+    # Predict per question
+    qcoefs_data <- unique(as.data.table(model$data)[, .(questionId,
+                                                        block,
+                                                        confidence,
+                                                        useful,
+                                                        affect)], by = "questionId")
+    # Take residuals over other attributres
+    qcoefs_data[, (other_attr) := lapply(other_attr, function(x)
+      median(model$data[x][[1]]))]
+    qcoefs_data[, wait_s := 0]
+    
+    if (quadratic) {
+      qcoefs_data[, `I(confidence^2)` := confidence ^ 2]
+      qcoefs_data[, `I(affect^2)` := affect ^ 2]
+      qcoefs_data[, `I(useful^2)` := useful ^ 2]
+    }
+    
+    # Fit only if not saved
+    qcoef_file <- file.path(cacheDir,
+                            paste0(model_name,
+                                   "_",
+                                   col,
+                                   "_point_predictions.rda"))
+    if (!file.exists(qcoef_file)) {
+      qcoefs <- fitted(
+        model,
+        newdata = qcoefs_data,
+        re_formula = ~ (1 + wait_s | questionId),
+        summary = F,
+        draw_ids = sample(1:4000, n_draws)
+      )
+      save(qcoefs, file = qcoef_file)
+    } else {
+      load(qcoef_file)
+    }
+    
+    # Summarize as wait, know vs. skip
+    list[qcoefs_wait, qcoefs_know] <- sum_cat(qcoefs)
+    
+    qcoefs_wait <- cbind(qcoefs_data, qcoefs_wait)
+    qcoefs_know <- cbind(qcoefs_data, qcoefs_know)
+    
+    qcoefs_wait <- merge(qcoefs_wait, quest_text, by = "questionId")
+    qcoefs_know <- merge(qcoefs_know, quest_text, by = "questionId")
+    
+    qcoefs_wait[, block := factor(block,
+                                  levels = block_levels,
+                                  labels = block_labels)]
+    qcoefs_wait[, x := get(col)]
+    
+    qcoefs_know[, block := factor(block,
+                                  levels = block_levels,
+                                  labels = block_labels)]
+    qcoefs_know[, x := get(col)]
+    
   }
-  
-  # Fit only if not saved
-  qcoef_file <- file.path(cacheDir,
-                          paste0(model_name,
-                                 "_",
-                                 col,
-                                 "_point_predictions.rda"))
-  if (!file.exists(qcoef_file)) {
-    qcoefs <- fitted(
-      model,
-      newdata = qcoefs_data,
-      re_formula = ~ (1 + wait_s | questionId),
-      summary = F,
-      draw_ids = sample(1:4000, n_draws)
-    )
-    save(qcoefs, file = qcoef_file)
-  } else {
-    load(qcoef_file)
-  }
-  
-  # Summarize as wait, know vs. skip
-  list[qcoefs_wait, qcoefs_know] <- sum_cat(qcoefs)
-  
-  qcoefs_wait <- cbind(qcoefs_data, qcoefs_wait)
-  qcoefs_know <- cbind(qcoefs_data, qcoefs_know)
-  
-  qcoefs_wait <- merge(qcoefs_wait, quest_text, by = "questionId")
-  qcoefs_know <- merge(qcoefs_know, quest_text, by = "questionId")
-  
   
   
   # Plot waiting
   pred_wait[, block := factor(block,
                               levels = block_levels,
                               labels = block_labels)]
-  qcoefs_wait[, block := factor(block,
-                                levels = block_levels,
-                                labels = block_labels)]
   pred_wait[, x := get(col)]
-  qcoefs_wait[, x := get(col)]
   
   p_wait <- ggplot(pred_wait, aes(
     x = x,
@@ -136,11 +145,13 @@ plot_wait_know_attr <- function(model,
     theme(legend.position = "none",
           plot.title = element_text(hjust = 0.5))
   
-  p_wait <- p_wait + geom_point(data = qcoefs_wait,
-                                aes(x = x,
-                                    y = m,
-                                    text = question),
-                                alpha = 0.3)
+  if (plot_questions) {
+    p_wait <- p_wait + geom_point(data = qcoefs_wait,
+                                  aes(x = x,
+                                      y = m,
+                                      text = question),
+                                  alpha = 0.3)
+  }
   
   p_wait <- getGeoms(p_wait,
                      pred_wait,
@@ -153,12 +164,8 @@ plot_wait_know_attr <- function(model,
   pred_know[, block := factor(block,
                               levels = block_levels,
                               labels = block_labels)]
-  qcoefs_know[, block := factor(block,
-                                levels = block_levels,
-                                labels = block_labels)]
   
   pred_know[, x := get(col)]
-  qcoefs_know[, x := get(col)]
   
   p_know <- ggplot(pred_know, aes(
     x = x,
@@ -184,14 +191,16 @@ plot_wait_know_attr <- function(model,
     theme(legend.position = "none",
           plot.title = element_text(hjust = 0.5))
   
-  p_know <- p_know + geom_point(data = qcoefs_know,
-                                aes(
-                                  x = x,
-                                  y = m,
-                                  color = block,
-                                  text = question
-                                ),
-                                alpha = 0.3)
+  if (plot_questions) {
+    p_know <- p_know + geom_point(data = qcoefs_know,
+                                  aes(
+                                    x = x,
+                                    y = m,
+                                    color = block,
+                                    text = question
+                                  ),
+                                  alpha = 0.3)
+  }
   
   p_know <- getGeoms(p_know,
                      pred_know,
@@ -217,17 +226,15 @@ combine_wait_know_plotly <- function(...) {
   ps <- lapply(ps, function(p) ggplotly(p, tooltip = "question"))
 
   # Remove legend from anything but lines
-  ps <- lapply(ps, function(p) {
-    for (ii in c(1:4, 6,7)) {
-      p$x$data[[ii]]$showlegend <- F
-    }
-    return(p)
-  })
+  for (ii in c(1:4, 6,7)) {
+    ps[[1]]$x$data[[ii]]$showlegend <- F
+  }
   
   # Remove legend from anything but first subplot
   for (i in 2:length(ps)){
-    ps[[i]]$x$data[[5]]$showlegend <- F
-    ps[[i]]$x$data[[8]]$showlegend <- F
+    for(j in 1:length(ps[[i]]$x$data)){
+      ps[[i]]$x$data[[j]]$showlegend <- F
+    }
   }
   
   
