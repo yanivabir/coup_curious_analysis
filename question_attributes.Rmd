@@ -26,6 +26,7 @@ library(brms)
 library(gsubfn)
 library(plotly)
 source("utils.R")
+source("question_attributes_func.R")
 
 
 savedModelsDir <- file.path("..", "saved_models")
@@ -42,13 +43,8 @@ block_lines <- c("solid", "dashed")
 
 chm1 <- brm(file = file.path(savedModelsDir, use_model))
 
-sampleName <- "v1.01"
-source("load_data_and_exclude.R")
-list[wait, rating_clps, know_test,
-     prob_judge, quest, quality] = load_exclude(sampleName)
-
-quest_text <- unique(wait[, .(questionId, question)])
-quest_text[, question := gsub('""""', '"', question)]
+# Question text
+quest_text <- prep_text()
 
 set.seed(0)
 ```
@@ -59,7 +55,7 @@ This presentation contains plots with the outcome of a model predicting choosing
 `r as.character(chm1$formula)[[1]]`
 
 ## Perceived answer usefulness
-```{r usefulness}
+```{r usefulness, warning=FALSE}
 plot_wait_know_attr(chm1, "useful", "Percieved answer usefulness (std.)")
 ```
 Points are adjusted for other attributes (confidence, affect), and so don't align across slides.

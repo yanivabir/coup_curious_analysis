@@ -202,9 +202,8 @@ plot_wait_know_attr <- function(model,
 }
 
 combine_wait_know_plotly <- function(...) {
-  plots_list <- list(...)
   # Set common y axes
-  ps <- set_common_y_limits(plots_list)
+  ps <- set_common_y_limits(...)
   
   # Plotlyfy
   ps <- lapply(ps, function(p) ggplotly(p, tooltip = "question"))
@@ -214,12 +213,13 @@ combine_wait_know_plotly <- function(...) {
     for (ii in c(1:4, 6,7)) {
       p$x$data[[ii]]$showlegend <- F
     }
+    return(p)
   })
   
   # Remove legend from anything but first subplot
-  for (p in ps[2:end]){
-    p$x$data[[5]]$showlegend <- F
-    p$x$data[[8]]$showlegend <- F
+  for (i in 2:length(ps)){
+    ps[[i]]$x$data[[5]]$showlegend <- F
+    ps[[i]]$x$data[[8]]$showlegend <- F
   }
   
   
@@ -238,4 +238,16 @@ combine_wait_know_plotly <- function(...) {
     )
   
   return(p)
+}
+
+prep_text <- function() {
+  sampleName <- "v1.01"
+  source("load_data_and_exclude.R")
+  list[wait, rating_clps, know_test,
+       prob_judge, quest, quality] = load_exclude(sampleName)
+  
+  quest_text <- unique(wait[, .(questionId, question)])
+  quest_text[, question := gsub('""""', '"', question)]
+  
+  return(quest_text)
 }
