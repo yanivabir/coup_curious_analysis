@@ -143,7 +143,7 @@ save(recall, file = file.path(preprocDatDir, "recall_data.rda"))
 # Parse text responses
 know_text <- data[category == "known_answer"]
 
-know_text[, know := fromJSON(gsub('""', '"', responses))$recall,
+know_text[, response := fromJSON(gsub('""', '"', responses))$recall,
             by = .(PID, trial_index)]
 
 # Gather forced choice responses
@@ -153,19 +153,33 @@ know_yn[button_pressed == "1", choice := "no"]
 
 know <- merge(know_yn[, .(PID, sess, firstBlock, version, block, type, 
                               trial_index, questionId, question, 
-                              answer, choice)], 
-                know_text[, .(PID, questionId, know)],
+                              choice)], 
+                know_text[, .(PID, questionId, response)],
                 by = c("PID", "questionId"), all.x = T)[order(PID, trial_index)]
-assert("NAs in answer knowledge data", sum(is.na(know[choice == "yes"]$know)) == 0)
+assert("NAs in answer knowledge data", sum(is.na(know[choice == "yes"]$response)) == 0)
+
+# Add answers
+qas <-
+  unique(recall[, .(questionId,
+                    question = trimws(question),
+                    answer = trimws(answer))])
+qas <- qas[, .(answer = paste(answer, collapse = " / ")),
+           by = .(questionId, question)]
+
+assert("wrong number of question and answer stims", nrow(qas) == 152)
+
+know <- merge(know, qas[,.(questionId, answer)], by = "questionId")
+assert("NA in answer column", sum(is.na(know$answer)) == 0)
 
 # Remove html from stimuli
 know[, question := gsub("<div class='question'>|</div>", "", question)]
-know[, answer := gsub("<div class='answer'>|</div>", "", answer)]
 
-# Remove trailing spaces from recalls
-know[, know := trimws(know)]
+# Remove trailing spaces
+know[, response := trimws(response)]
+know[, question := trimws(question)]
+know[, answer := trimws(answer)]
 
-#Score easy scores
-know <- score_easy(know, "know")
+# Score easy scores
+know <- score_easy(know, "response")
 
 save(know, file = file.path(preprocDatDir, "answer_knowledge_data.rda"))

@@ -8,21 +8,24 @@ preprocDatDir <- file.path("..", "data", "v1.01", "preproc")
 
 # Load recall data
 load(file.path(preprocDatDir, "recall_data.rda"))
+load(file.path(preprocDatDir, "answer_knowledge_data.rda"))
 
-saveForCoding <- function(recall){
+
+saveForCoding <- function(dt, col, name){
   
   # Find unique
-  unique_recall <- unique(recall[is.na(correct) & (!is.na(recall)), 
-                                 .(questionId, question, answer, recall)])
+  unique_dt <- unique(dt[is.na(correct) & (!is.na(get(col))), 
+                                 .(questionId, question, answer, get(col))])
   
   # Sort
-  unique_recall <- unique_recall[order(questionId)]
+  unique_dt <- unique_dt[order(questionId)]
   
   # Save to file
-  write.csv(unique_recall, file = 
+  write.csv(unique_dt, file = 
               file.path(preprocDatDir, 
-                        paste(Sys.Date(),"recall_for_coding.csv", sep="_")))
+                        paste(Sys.Date(),paste0(name, "_for_coding.csv"), sep="_")))
   
-  return(unique_recall)
+  return(unique_dt)
 }
 
+saveForCoding(know, "response", "answer_knowledge")
