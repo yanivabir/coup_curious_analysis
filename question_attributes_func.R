@@ -201,26 +201,30 @@ plot_wait_know_attr <- function(model,
   }
 }
 
-combine_wait_know_plotly <- function(p_wait, p_know) {
+combine_wait_know_plotly <- function(...) {
+  plots_list <- list(...)
   # Set common y axes
-  list[p_wait, p_know] <- set_common_y_limits(p_wait, p_know)
+  ps <- set_common_y_limits(plots_list)
   
   # Plotlyfy
-  p_know <- ggplotly(p_know, tooltip = "question")
-  
-  p_wait <- ggplotly(p_wait, tooltip = "question")
-  
+  ps <- lapply(ps, function(p) ggplotly(p, tooltip = "question"))
+
   # Remove legend from anything but lines
-  for (ii in c(1:4, 6,7)) {
-    p_know$x$data[[ii]]$showlegend <- F
-    p_wait$x$data[[ii]]$showlegend <- F
+  ps <- lapply(ps, function(p) {
+    for (ii in c(1:4, 6,7)) {
+      p$x$data[[ii]]$showlegend <- F
+    }
+  })
+  
+  # Remove legend from anything but first subplot
+  for (p in ps[2:end]){
+    p$x$data[[5]]$showlegend <- F
+    p$x$data[[8]]$showlegend <- F
   }
-  p_know$x$data[[5]]$showlegend <- F
-  p_know$x$data[[8]]$showlegend <- F
+  
   
   # Create one plot
-  p <- subplot(p_wait,
-               p_know,
+  p <- subplot(ps,
                titleX = T,
                titleY = T,
                margin = 0.05) %>%
