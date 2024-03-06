@@ -5,9 +5,10 @@ plot_wait_know_attr <- function(model,
                                 quadratic = T,
                                 combine = T,
                                 title = NULL,
-                                plot_questions = T) {
+                                plot_questions = T,
+                                model_name = deparse(substitute(model))) {
   
-  model_name <- deparse(substitute(model))
+  print(paste("Plotting for", model_name))
   
   # Prepare values for prediction
   plot_dat <- rbindlist(lapply(unique(model$data$block),

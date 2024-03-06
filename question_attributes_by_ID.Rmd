@@ -1,6 +1,8 @@
 ---
 title: "Question attributes with and without adjusting for ID measures"
-output: ioslides_presentation
+output: 
+  ioslides_presentation:
+    smaller: true
 date: "2024-03-06"
 ---
 
@@ -44,6 +46,7 @@ plot_attr_plus <-
         'motivation_s'
       ),
       combine = F,
+      model_name = deparse(substitute(model)),
       ...
     )
 
@@ -64,7 +67,7 @@ quest_text <- prep_text()
 set.seed(0)
 ```
 
-```{r prepare_plots}
+```{r prepare_plots, message=FALSE, warning=FALSE, include=FALSE}
 chmq1 <- brm(file = file.path(savedModelsDir, "chmq1"))
 chpm1 <- brm(file = file.path(savedModelsDir, "chpm1"))
 
@@ -80,7 +83,8 @@ list[p_use_m_wait, p_use_m_know] <-
     chpm1,
     "useful",
     "Answer usefulness |\nindividual differences",
-     plot_questions = F)
+    plot_questions = F
+  )
 
 # Confidence
 list[p_conf_um_wait, p_conf_um_know] <-
@@ -112,6 +116,15 @@ list[p_aff_m_wait, p_aff_m_know] <-
     plot_questions = F
   )
 ```
+## How does accounting for individual differences change the effect of question attributes on chioce?
+
+We observed that expectations of usefulness, expectations of affective response, and confidence, predict choice in the waiting task. However, these are estimates averaging over different kinds of people - supporters and oppenents of the coup, people who care about it and people who don't (as well as people with good and bad mood, motivationally active and apathetic).
+
+How do the effects of the three question attributes (usefulness, confidence, and affect) change when you adjust them for individual differences measures?
+
+This presentation plots the effects of question attributes on chioce, each time comparing the grand average estimates to those adjusted for individual differences. Overall, we see that the predictive power of the adjusted estimates is considerably better. We also see some specific systematic differences in the effects.
+
+## Wait vs. skip
 
 ## Comparing mediating and unmediating usefulness
 ```{r wait_use_compare}
@@ -127,3 +140,23 @@ combine_wait_know_plotly(p_conf_um_wait, p_conf_m_wait)
 ```{r wait_aff_compare}
 combine_wait_know_plotly(p_aff_um_wait, p_aff_m_wait)
 ```
+
+We can see that the morbid curiosity effect goes away - it was probably due to coup-supporters, who saw these questions as positive. We should follow up to see if that is indeed the case. See `ID_measures.html` for differences in affect as a function of coup-attitude.
+
+## Know vs. skip
+
+## Comparing mediating and unmediating usefulness
+```{r know_use_compare}
+combine_wait_know_plotly(p_use_um_know, p_use_m_know)
+```
+
+## Comparing mediating and unmediating confidence
+```{r know_conf_compare}
+combine_wait_know_plotly(p_conf_um_know, p_conf_m_know)
+```
+
+## Comparing mediating and unmediating affect
+```{r know_aff_compare}
+combine_wait_know_plotly(p_aff_um_know, p_aff_m_know)
+```
+
