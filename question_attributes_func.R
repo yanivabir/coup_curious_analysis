@@ -4,6 +4,9 @@ plot_wait_know_attr <- function(model,
                                 attributes = c("useful", "confidence", "affect"),
                                 quadratic = T,
                                 combine = T) {
+  
+  model_name <- deparse(substitute(model))
+  
   # Prepare values for prediction
   plot_dat <- rbindlist(lapply(unique(model$data$block),
                                function(x)
@@ -28,7 +31,7 @@ plot_wait_know_attr <- function(model,
   # Predict - this returns ndraws x npoints x 3
   # Fit only if not saved
   pred_file <- file.path(cacheDir,
-                         paste0(use_model,
+                         paste0(model_name,
                                 "_",
                                 col,
                                 "_line_predictions.rda"))
@@ -70,7 +73,7 @@ plot_wait_know_attr <- function(model,
   
   # Fit only if not saved
   qcoef_file <- file.path(cacheDir,
-                          paste0(use_model,
+                          paste0(model_name,
                                  "_",
                                  col,
                                  "_point_predictions.rda"))
