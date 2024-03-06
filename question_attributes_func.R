@@ -3,7 +3,8 @@ plot_wait_know_attr <- function(model,
                                 label,
                                 attributes = c("useful", "confidence", "affect"),
                                 quadratic = T,
-                                combine = T) {
+                                combine = T,
+                                title = NULL) {
   
   model_name <- deparse(substitute(model))
   
@@ -122,7 +123,8 @@ plot_wait_know_attr <- function(model,
       y = "Prop. waited vs. skipped",
       color = "Block",
       fill = "",
-      linetype = "Block"
+      linetype = "Block",
+      title = title
     ) +
     scale_x_continuous(expand = expansion(mult = c(0, 0))) +
     scale_fill_manual(breaks = block_labels,
@@ -131,7 +133,8 @@ plot_wait_know_attr <- function(model,
                        values = block_colors) +
     scale_linetype_manual(breaks = block_labels,
                           values = block_lines) +
-    theme(legend.position = "none")
+    theme(legend.position = "none",
+          plot.title = element_text(hjust = 0.5))
   
   p_wait <- p_wait + geom_point(data = qcoefs_wait,
                                 aes(x = x,
@@ -168,7 +171,8 @@ plot_wait_know_attr <- function(model,
       y = "Prop. known vs. skipped",
       color = "Question type",
       fill = "Question type",
-      linetype = "Question type"
+      linetype = "Question type",
+      title = title
     ) +
     scale_x_continuous(expand = expansion(mult = c(0, 0))) +
     scale_fill_manual(breaks = block_labels,
@@ -177,7 +181,8 @@ plot_wait_know_attr <- function(model,
                        values = block_colors) +
     scale_linetype_manual(breaks = block_labels,
                           values = block_lines) +
-    theme(legend.position = "none")
+    theme(legend.position = "none",
+          plot.title = element_text(hjust = 0.5))
   
   p_know <- p_know + geom_point(data = qcoefs_know,
                                 aes(

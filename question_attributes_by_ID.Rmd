@@ -1,0 +1,133 @@
+---
+title: "Question attributes with and without adjusting for ID measures"
+output: ioslides_presentation
+date: "2024-03-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+# Load libraries
+library(data.table)
+setDTthreads(11)
+library(ggplot2)
+library(stringr)
+library(cowplot)
+library(testit)
+theme_set(theme_minimal()  +
+            theme_cowplot(14, font_family = "Helvetica", rel_small = 0.8) + 
+            theme(legend.position = "none",
+                  strip.text = element_text(size = 9),
+                  plot.margin = margin(1.5,2,1.5,2)))
+library(brms)
+library(gsubfn)
+library(plotly)
+source("utils.R")
+source("question_attributes_func.R")
+
+
+savedModelsDir <- file.path("..", "saved_models")
+cacheDir <- file.path("..", "saved_models", "question_attributes")
+res <- 100 # Plotting resolution for lines
+n_draws <- 300 # Subset of draws for prediction
+
+# Colors, lines labels
+block_colors <- c("#cc1337", "#005b8d")
+block_labels <- c("Coup-related", "General")
+block_levels <- c("coup", "general")
+block_lines <- c("solid", "dashed")
+
+# Question text
+quest_text <- prep_text()
+
+set.seed(0)
+```
+
+```{r prepare_plots}
+chm1 <- brm(file = file.path(savedModelsDir, "chm1"))
+chpm1 <- brm(file = file.path(savedModelsDir, "chpm1"))
+
+# Usefulness
+list[p_use_um_wait, p_use_um_know] <-
+  plot_wait_know_attr(chm1, "useful", "Answer usefulness",
+                      combine = F)
+
+list[p_use_m_wait, p_use_m_know] <-
+  plot_wait_know_attr(
+    chpm1,
+    "useful",
+    "Answer usefulness |\nindividual differences",
+    attributes = c(
+      "useful",
+      "confidence",
+      "affect",
+      'coup_relevance_s',
+      'coup_attitude_s',
+      'affect_s',
+      'motivation_s'
+    ),
+    combine = F,
+  )
+
+# Confidence
+list[p_conf_um_wait, p_conf_um_know] <-
+  plot_wait_know_attr(chm1, "useful", "Confidence",
+                      combine = F)
+
+list[p_conf_m_wait, p_conf_m_know] <-
+  plot_wait_know_attr(
+    chpm1,
+    "useful",
+    "Confidence |\nindividual differences",
+    attributes = c(
+      "useful",
+      "confidence",
+      "affect",
+      'coup_relevance_s',
+      'coup_attitude_s',
+      'affect_s',
+      'motivation_s'
+    ),
+    combine = F,
+  )
+
+# Affect
+list[p_aff_um_wait, p_aff_um_know] <-
+  plot_wait_know_attr(chm1, "useful", "Expected affect",
+                      combine = F)
+
+list[p_aff_m_wait, p_aff_m_know] <-
+  plot_wait_know_attr(
+    chpm1,
+    "useful",
+    "Expected affect |\nindividual differences",
+    attributes = c(
+      "useful",
+      "confidence",
+      "affect",
+      'coup_relevance_s',
+      'coup_attitude_s',
+      'affect_s',
+      'motivation_s'
+    ),
+    combine = F,
+  )
+```
+
+## Comparing mediating and unmediating usefulness
+```{r wait_use_compare}
+combine_wait_know_plotly(p_use_um_wait, p_use_m_wait)
+```
+
+## Comparing mediating and unmediating confidence
+```{r wait_conf_compare}
+combine_wait_know_plotly(p_conf_um_wait, p_conf_m_wait)
+```
+
+## Comparing mediating and unmediating affect
+```{r wait_aff_compare}
+combine_wait_know_plotly(p_aff_um_wait, p_aff_m_wait)
+```
