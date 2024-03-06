@@ -28,6 +28,24 @@ library(plotly)
 source("utils.R")
 source("question_attributes_func.R")
 
+plot_attr_plus <-
+  function(model, col, label, ...)
+    plot_wait_know_attr(
+      model,
+      col,
+      label,
+      attributes = c(
+        "useful",
+        "confidence",
+        "affect",
+        'coup_relevance_s',
+        'coup_attitude_s',
+        'affect_s',
+        'motivation_s'
+      ),
+      combine = F,
+      ...
+    )
 
 savedModelsDir <- file.path("..", "saved_models")
 cacheDir <- file.path("..", "saved_models", "question_attributes")
@@ -47,73 +65,51 @@ set.seed(0)
 ```
 
 ```{r prepare_plots}
-chm1 <- brm(file = file.path(savedModelsDir, "chm1"))
+chmq1 <- brm(file = file.path(savedModelsDir, "chmq1"))
 chpm1 <- brm(file = file.path(savedModelsDir, "chpm1"))
 
 # Usefulness
 list[p_use_um_wait, p_use_um_know] <-
-  plot_wait_know_attr(chm1, "useful", "Answer usefulness",
-                      combine = F)
+  plot_attr_plus(
+    chmq1,
+    "useful",
+    "Answer usefulness")
 
 list[p_use_m_wait, p_use_m_know] <-
-  plot_wait_know_attr(
+  plot_attr_plus(
     chpm1,
     "useful",
     "Answer usefulness |\nindividual differences",
-    attributes = c(
-      "useful",
-      "confidence",
-      "affect",
-      'coup_relevance_s',
-      'coup_attitude_s',
-      'affect_s',
-      'motivation_s'
-    ),
-    combine = F,
-  )
+     plot_questions = F)
 
 # Confidence
 list[p_conf_um_wait, p_conf_um_know] <-
-  plot_wait_know_attr(chm1, "useful", "Confidence",
-                      combine = F)
+  plot_attr_plus(
+    chmq1,
+    "confidence",
+    "Confidence")
 
 list[p_conf_m_wait, p_conf_m_know] <-
-  plot_wait_know_attr(
+  plot_attr_plus(
     chpm1,
-    "useful",
+    "confidence",
     "Confidence |\nindividual differences",
-    attributes = c(
-      "useful",
-      "confidence",
-      "affect",
-      'coup_relevance_s',
-      'coup_attitude_s',
-      'affect_s',
-      'motivation_s'
-    ),
-    combine = F,
+    plot_questions = F
   )
 
 # Affect
 list[p_aff_um_wait, p_aff_um_know] <-
-  plot_wait_know_attr(chm1, "useful", "Expected affect",
-                      combine = F)
+  plot_attr_plus(
+    chmq1,
+    "affect",
+    "Expected affect")
 
 list[p_aff_m_wait, p_aff_m_know] <-
-  plot_wait_know_attr(
+  plot_attr_plus(
     chpm1,
-    "useful",
+    "affect",
     "Expected affect |\nindividual differences",
-    attributes = c(
-      "useful",
-      "confidence",
-      "affect",
-      'coup_relevance_s',
-      'coup_attitude_s',
-      'affect_s',
-      'motivation_s'
-    ),
-    combine = F,
+    plot_questions = F
   )
 ```
 
